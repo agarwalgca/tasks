@@ -1,6 +1,7 @@
 import type { Table } from 'dexie'
 import { type AppDatabase, db as defaultDb } from '@/lib/db'
 import { nowISO } from '@/lib/time'
+import { emitLocalChange } from './bus'
 import type { AnyRow, RowTypes, SyncTable } from '@/lib/types'
 
 /**
@@ -26,6 +27,7 @@ export async function writeRow<T extends SyncTable>(
     await (db.table(table) as Table).put(row)
     await enqueue(db, table, row)
   })
+  emitLocalChange()
   return row
 }
 
@@ -40,6 +42,7 @@ export async function writeRows<T extends SyncTable>(
       await enqueue(db, table, row)
     }
   })
+  emitLocalChange()
 }
 
 /** Stamps the edit time that last-write-wins is resolved on. */

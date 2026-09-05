@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: 250 249 247;
+    --surface: 255 255 255;
+    --surface-2: 243 241 238;
+    --border: 226 222 216;
+    --text: 26 26 24;
+    --muted: 104 100 94;
+    --faint: 150 145 138;
+    --accent: 13 124 108;
+    --accent-fg: 255 255 255;
+    --p1: 193 47 41;
+    --p2: 176 108 18;
+    --p3: 71 105 152;
+  }
+
+  .dark {
+    --bg: 18 18 17;
+    --surface: 26 26 25;
+    --surface-2: 35 35 33;
+    --border: 51 50 47;
+    --text: 235 233 229;
+    --muted: 154 149 142;
+    --faint: 112 108 102;
+    --accent: 45 190 165;
+    --accent-fg: 8 32 28;
+    --p1: 255 122 110;
+    --p2: 226 165 66;
+    --p3: 133 172 219;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+    font-size: 14px;
+    overscroll-behavior-y: none;
+  }
+
+  ::selection {
+    background: rgb(var(--accent) / 0.25);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent));
+    outline-offset: 2px;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+@layer components {
+  .field {
+    @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-ink
+      placeholder:text-faint focus:border-accent focus:outline-none;
+  }
+
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-1.5 rounded-md
+      px-3 py-1.5 font-medium transition-colors disabled:opacity-40;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent text-accent-fg hover:brightness-110;
+  }
+
+  .btn-quiet {
+    @apply btn text-muted hover:bg-surface2 hover:text-ink;
+  }
+
+  .btn-outline {
+    @apply btn border border-line bg-surface hover:bg-surface2;
+  }
+
+  .kbd {
+    @apply rounded border border-line bg-surface2 px-1 font-mono text-2xs
+      text-muted;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-line
+      bg-surface2 px-2 py-0.5 text-2xs text-muted;
+  }
+}
+
+/* The list is the app; keep its scrollbar unobtrusive but present. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--border)) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border: 3px solid rgb(var(--bg));
+  border-radius: 6px;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
