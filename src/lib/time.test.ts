@@ -4,6 +4,7 @@ import {
   daysBetweenISO,
   formatDateLabel,
   formatDue,
+  formatInstant,
   formatTime,
   isOverdue,
   isToday,
@@ -93,6 +94,18 @@ describe('formatDateLabel', () => {
       'Tomorrow 5:00 pm',
     )
     expect(formatDue('2026-09-07', null, SUNDAY_NOON_IST)).toBe('Tomorrow')
+  })
+})
+
+describe('formatInstant', () => {
+  it('renders a stored timestamp on the IST clock', () => {
+    // 19:00Z is 00:30 IST the next day, which is "Tomorrow" from Sunday noon.
+    expect(formatInstant('2026-09-06T19:00:00.000Z', SUNDAY_NOON_IST)).toBe(
+      'Tomorrow 12:30 am',
+    )
+    expect(formatInstant('2026-09-06T06:30:00.000Z', SUNDAY_NOON_IST)).toBe(
+      'Today 12:00 pm',
+    )
   })
 })
 

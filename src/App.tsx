@@ -5,7 +5,6 @@ import { AuthScreen } from '@/features/auth/AuthScreen'
 import { SetupScreen } from '@/features/auth/SetupScreen'
 import { useSession } from '@/features/auth/useSession'
 import { db } from '@/lib/db'
-import { newId } from '@/lib/ids'
 import { isConfigured } from '@/lib/supabase'
 import { nowISO } from '@/lib/time'
 import type { Profile } from '@/lib/types'
@@ -58,12 +57,7 @@ function Root() {
       stopSync()
       return
     }
-    void ensureProfile(userId).then(() => {
-      void db.getMeta('device_id').then(async (id) => {
-        if (!id) await db.setMeta('device_id', newId())
-      })
-      startSync(userId)
-    })
+    void ensureProfile(userId).then(() => startSync(userId))
     return () => stopSync()
   }, [userId])
 

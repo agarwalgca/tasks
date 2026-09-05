@@ -1,6 +1,6 @@
 import { markConflictReviewed, restoreConflictLocal } from '@/lib/mutations'
 import { useConflicts } from '@/lib/queries'
-import { formatDue } from '@/lib/time'
+import { formatInstant } from '@/lib/time'
 import type { AnyRow, ConflictRecord } from '@/lib/types'
 
 const IGNORED_FIELDS = new Set(['updated_at', 'created_at', 'user_id', 'id'])
@@ -24,7 +24,6 @@ function show(value: unknown): string {
 
 function ConflictCard({ record }: { record: ConflictRecord }) {
   const rows = differences(record.local, record.remote)
-  const detected = new Date(record.detected_at)
 
   return (
     <li
@@ -36,10 +35,7 @@ function ConflictCard({ record }: { record: ConflictRecord }) {
         <div className="min-w-0">
           <p className="truncate font-medium">{record.title}</p>
           <p className="font-mono text-2xs text-faint">
-            {record.table} · {formatDue(
-              detected.toISOString().slice(0, 10),
-              detected.toISOString().slice(11, 16),
-            )}
+            {record.table} · {formatInstant(record.detected_at)}
           </p>
         </div>
         {!record.reviewed_at && (

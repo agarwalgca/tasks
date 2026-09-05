@@ -146,6 +146,17 @@ export function formatDue(
   return timeOfDay ? `${day} ${formatTime(timeOfDay)}` : day
 }
 
+/** A stored timestamptz rendered on the Asia/Kolkata clock. */
+export function formatInstant(
+  iso: string,
+  now: Date = new Date(),
+  tz: string = APP_TZ,
+): string {
+  const p = zonedParts(new Date(iso), tz)
+  const day = `${p.year}-${pad(p.month)}-${pad(p.day)}`
+  return `${formatDateLabel(day, now, tz)} ${formatTime(`${pad(p.hour)}:${pad(p.minute)}`)}`
+}
+
 /**
  * A dated task is overdue once its day has passed; a task with a time is
  * overdue once that moment has passed.
