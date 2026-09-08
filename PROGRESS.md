@@ -1,8 +1,9 @@
 # Progress
 
 ## Where this is
-Phase 1 is built. The app runs, builds clean and its tests pass. It has not yet
-been pointed at a live Supabase project — see **Next** for the two values needed.
+Phase 1 is done and verified against the live Supabase project (ap-south-1,
+Mumbai). Migrations are applied, the account exists, and a full round trip has
+been exercised on real infrastructure.
 
 ## Done
 
@@ -44,15 +45,31 @@ been pointed at a live Supabase project — see **Next** for the two values need
 stale push being ignored, soft deletes propagating, and a no-change pull being
 a genuine no-op).
 
-## Next
-1. Paste your Supabase **Project URL** and **anon key** into `.env.local`
-   (already created from `.env.example`, already gitignored), then restart
-   `npm run dev`. Until then the app shows a setup screen.
-2. Run the three migration files in order from the Supabase SQL editor.
-3. Sign up once, then sign in on the phone with the same account.
+## Verified on the live project (2026-09-08)
+- Anonymous insert into `tasks` is refused with `42501` — RLS is what makes the
+  anon key safe to ship.
+- Tasks written in the browser land in Postgres: `profiles` 1, `tasks` 3,
+  `tags` 1, `task_tags` 1, `sync_state` 1 (this device registering itself).
+  The tag and its join row came from the quick-add parser, not by hand.
+- A second origin (`:4173`, a different local database and session) signed in
+  and pulled the whole account down — the first-sync path a new phone takes.
+- Service worker registers and activates from the production build; an offline
+  reload renders the shell from cache with tasks intact and the badge on
+  "Offline".
 
-Then Phase 2: recurrence (`rrule`), reminders and push, calendar view, saved
+## Next
+Phase 2: recurrence (`rrule`), reminders and push, calendar view, saved
 filters, search, client UI. The schema already holds their columns.
+
+### Setup notes, if this ever needs redoing
+- A project's region cannot be changed after creation; make a new project and
+  move the data. This one was rebuilt in Mumbai after starting in Seoul.
+- Supabase requires email confirmation by default, and its default Site URL is
+  `http://localhost:3000` — set it to the dev port or the confirmation link
+  lands on a dead page. `detectSessionInUrl` is false, so the token in the
+  redirect hash is ignored and you sign in with the password afterwards.
+- The service worker only exists in production builds. `npm run dev` will never
+  survive an offline reload; use `npm run build && npm run preview` to test it.
 
 ## Decisions, and why
 
