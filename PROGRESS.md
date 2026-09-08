@@ -61,6 +61,14 @@ a genuine no-op).
 Phase 2: recurrence (`rrule`), reminders and push, calendar view, saved
 filters, search, client UI. The schema already holds their columns.
 
+### Deploying
+GitHub Pages, via `.github/workflows/deploy.yml` on push to master. The build
+is base-path aware: `VITE_BASE` drives Vite's `base`, the manifest's
+`start_url`/`scope` and the service worker's navigation fallback, so a project
+repo served from `/<repo>/` works without hand-editing anything. The workflow
+derives it from the repo name and uses `/` for a `<user>.github.io` repo.
+Supabase credentials come from repository secrets rather than the repo.
+
 ### Setup notes, if this ever needs redoing
 - A project's region cannot be changed after creation; make a new project and
   move the data. This one was rebuilt in Mumbai after starting in Seoul.

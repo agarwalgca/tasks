@@ -3,7 +3,12 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
+// GitHub Pages serves a project repo from /<repo>/, so the base has to match.
+// The deploy workflow sets this; locally it stays at the root.
+const base = process.env.VITE_BASE || '/'
+
 export default defineConfig({
+  base,
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
@@ -16,8 +21,8 @@ export default defineConfig({
         name: 'Tasks',
         short_name: 'Tasks',
         description: 'Personal task manager',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#faf9f7',
@@ -35,7 +40,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        navigateFallback: '/index.html',
+        navigateFallback: `${base}index.html`,
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
