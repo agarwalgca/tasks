@@ -62,7 +62,14 @@ Phase 2: recurrence (`rrule`), reminders and push, calendar view, saved
 filters, search, client UI. The schema already holds their columns.
 
 ### Deploying
-GitHub Pages, via `.github/workflows/deploy.yml` on push to master. The build
+Live at **https://agarwalgca.github.io/tasks/** from
+`github.com/agarwalgca/tasks`, via `.github/workflows/deploy.yml` on push to
+master.
+
+Enabling Pages through the API sets the environment's deployment branch policy
+to `main`, so the first deploy was rejected on a `master` repo; `master` was
+added to `github-pages` deployment-branch-policies to fix it. Worth knowing if
+this is ever set up again. The build
 is base-path aware: `VITE_BASE` drives Vite's `base`, the manifest's
 `start_url`/`scope` and the service worker's navigation fallback, so a project
 repo served from `/<repo>/` works without hand-editing anything. The workflow
