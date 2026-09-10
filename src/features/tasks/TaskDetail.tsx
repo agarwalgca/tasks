@@ -8,7 +8,14 @@ import {
   setTaskTags,
   updateTask,
 } from '@/lib/mutations'
-import { childrenOf, useAllTasks, useLists, useTags, useTaskTags } from '@/lib/queries'
+import {
+  childrenOf,
+  useAllTasks,
+  useClients,
+  useLists,
+  useTags,
+  useTaskTags,
+} from '@/lib/queries'
 import { RecurrencePicker } from '@/features/recurrence/RecurrencePicker'
 import type { Task, TaskStatus } from '@/lib/types'
 
@@ -24,6 +31,7 @@ const STATUSES: TaskStatus[] = ['todo', 'doing', 'done', 'cancelled']
 export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () => void }) {
   const tasks = useAllTasks()
   const lists = useLists()
+  const clients = useClients()
   const allTags = useTags()
   const taskTags = useTaskTags()
   const task = tasks.find((t) => t.id === taskId)
@@ -238,6 +246,25 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
             </select>
           </Field>
         </div>
+
+        {clients.length > 0 && (
+          <Field label="Client">
+            <select
+              value={task.client_id ?? ''}
+              onChange={(e) =>
+                void updateTask(task, { client_id: e.target.value || null })
+              }
+              className="field"
+            >
+              <option value="">None</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <Field label="Repeat">
           <RecurrencePicker task={task} onChange={(patch) => void updateTask(task, patch)} />

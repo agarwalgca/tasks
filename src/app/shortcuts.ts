@@ -79,6 +79,8 @@ export function useShortcuts(enabled: boolean): void {
           a: () => ui.setView({ kind: 'all' }),
           c: () => ui.setView({ kind: 'completed' }),
           s: () => ui.setView({ kind: 'settings' }),
+          v: () => ui.setView({ kind: 'calendar' }),
+          f: () => ui.setView({ kind: 'search' }),
         }
         const jump = go[event.key.toLowerCase()]
         if (jump) {
@@ -97,9 +99,12 @@ export function useShortcuts(enabled: boolean): void {
           return
         case 'n':
         case 'c':
-        case '/':
           event.preventDefault()
           focusQuickAdd()
+          return
+        case '/':
+          event.preventDefault()
+          ui.setView({ kind: 'search' })
           return
         case 'j':
           event.preventDefault()
@@ -158,13 +163,15 @@ export function useShortcuts(enabled: boolean): void {
 }
 
 export const SHORTCUTS: [string, string][] = [
-  ['n / c / /', 'Focus quick add'],
+  ['n or c', 'Focus quick add'],
+  ['/', 'Search'],
   ['j / k', 'Move down / up'],
   ['x or Space', 'Complete task'],
   ['Enter or e', 'Open task'],
   ['0 1 2 3', 'Set priority'],
   ['# or Backspace', 'Delete task'],
   ['g then t w i a c', 'Today, week, inbox, all, completed'],
+  ['g then v', 'Calendar'],
   ['g then s', 'Settings'],
   ['?', 'This list'],
   ['Esc', 'Close'],

@@ -12,7 +12,7 @@ import type { Task } from '@/lib/types'
 import { useUi, type View } from '@/store/ui'
 import { TaskRow } from './TaskRow'
 
-const NESTED_VIEWS = new Set(['inbox', 'list', 'all'])
+const NESTED_VIEWS = new Set(['inbox', 'list', 'all', 'client'])
 const EMPTY: Record<string, string> = {
   today: 'Nothing due today.',
   next7: 'Nothing in the next seven days.',
@@ -20,6 +20,8 @@ const EMPTY: Record<string, string> = {
   all: 'No open tasks.',
   completed: 'Nothing completed yet.',
   list: 'This list is empty.',
+  client: 'Nothing for this client.',
+  search: 'No matches.',
 }
 
 export function TaskList({ view, now }: { view: View; now: Date }) {
@@ -27,11 +29,31 @@ export function TaskList({ view, now }: { view: View; now: Date }) {
   const lists = useLists()
   const tags = useTags()
   const taskTags = useTaskTags()
+  const searchQuery = useUi((s) => s.searchQuery)
   const focusedTaskId = useUi((s) => s.focusedTaskId)
   const setFocusedTask = useUi((s) => s.setFocusedTask)
   const setOpenTask = useUi((s) => s.setOpenTask)
 
-  const groups = useMemo(() => selectGroups(tasks, view, now), [tasks, view, now])
+  const searchIndex = useMemo(() => {
+    if (view.kind !== 'search') return undefined
+    const byTask = new Map<string, string[]>()
+    for (const link of taskTags) {
+      const tag = tags.find((t) => t.id === link.tag_id)
+      if (!tag) continue
+      byTask.set(link.task_id, [...(byTask.get(link.task_id) ?? []), tag.name])
+    }
+    return new Map(
+      tasks.map((t) => [
+        t.id,
+        [t.title, t.notes ?? '', ...(byTask.get(t.id) ?? [])].join(' ').toLowerCase(),
+      ]),
+    )
+  }, [view.kind, tasks, taskTags, tags])
+
+  const groups = useMemo(
+    () => selectGroups(tasks, view, now, searchIndex, searchQuery),
+    [tasks, view, now, searchIndex, searchQuery],
+  )
   const listById = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists])
   const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags])
   const tagsForTask = useMemo(() => {
@@ -52,7 +74,9 @@ export function TaskList({ view, now }: { view: View; now: Date }) {
   if (groups.length === 0) {
     return (
       <p className="px-4 py-12 text-center text-sm text-muted">
-        {EMPTY[view.kind] ?? 'Nothing here.'}
+        {view.kind === 'search' && !searchQuery.trim()
+          ? 'Type to search titles, notes and tags.'
+          : (EMPTY[view.kind] ?? 'Nothing here.')}
       </p>
     )
   }

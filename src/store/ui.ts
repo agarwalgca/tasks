@@ -8,12 +8,16 @@ export type ViewKind =
   | 'all'
   | 'completed'
   | 'list'
+  | 'client'
+  | 'calendar'
+  | 'search'
   | 'conflicts'
   | 'settings'
 
 export interface View {
   kind: ViewKind
   listId?: string
+  clientId?: string
 }
 
 export type Theme = 'light' | 'dark' | 'system'
@@ -26,6 +30,7 @@ interface UiStore {
   openTaskId: string | null
   sidebarOpen: boolean
   shortcutsOpen: boolean
+  searchQuery: string
   setView: (view: View) => void
   setTheme: (theme: Theme) => void
   setShowQuickAdd: (open: boolean) => void
@@ -33,6 +38,7 @@ interface UiStore {
   setOpenTask: (id: string | null) => void
   setSidebarOpen: (open: boolean) => void
   setShortcutsOpen: (open: boolean) => void
+  setSearchQuery: (query: string) => void
 }
 
 export const useUi = create<UiStore>()(
@@ -45,6 +51,7 @@ export const useUi = create<UiStore>()(
       openTaskId: null,
       sidebarOpen: false,
       shortcutsOpen: false,
+      searchQuery: '',
       setView: (view) =>
         set({ view, openTaskId: null, focusedTaskId: null, sidebarOpen: false }),
       setTheme: (theme) => set({ theme }),
@@ -53,6 +60,7 @@ export const useUi = create<UiStore>()(
       setOpenTask: (openTaskId) => set({ openTaskId }),
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
+      setSearchQuery: (searchQuery) => set({ searchQuery }),
     }),
     {
       name: 'tasks-ui',
@@ -77,6 +85,12 @@ export function viewTitle(view: View, listName?: string): string {
       return 'Sync conflicts'
     case 'settings':
       return 'Settings'
+    case 'calendar':
+      return 'Calendar'
+    case 'search':
+      return 'Search'
+    case 'client':
+      return listName ?? 'Client'
     case 'list':
       return listName ?? 'List'
   }

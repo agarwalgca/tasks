@@ -2,7 +2,7 @@ import { db } from './db'
 import { newId } from './ids'
 import { requireUserId } from './session'
 import { nowISO, todayISO } from './time'
-import type { List, Tag, Task, TaskTag } from './types'
+import type { Client, List, Tag, Task, TaskTag } from './types'
 import { firstOccurrenceFrom, nextDueDate } from '@/features/recurrence/recurrence'
 import type { ParsedQuickAdd } from '@/features/quickadd/parse'
 import { deleteLocal, putLocal, putLocalMany, revise } from '@/sync/writes'
@@ -209,6 +209,40 @@ export async function deleteList(id: string): Promise<void> {
     await putLocal('tasks', revise(task, { list_id: null }))
   }
   await deleteLocal('lists', id)
+}
+
+export async function createClient(name: string): Promise<Client> {
+  const at = nowISO()
+  const client: Client = {
+    id: newId(),
+    user_id: requireUserId(),
+    name: name.trim() || 'New client',
+    notes: null,
+    is_active: true,
+    created_at: at,
+    updated_at: at,
+    deleted_at: null,
+  }
+  await putLocal('clients', client)
+  return client
+}
+
+export async function updateClient(
+  client: Client,
+  patch: Partial<Client>,
+): Promise<void> {
+  await putLocal('clients', revise(client, patch))
+}
+
+/** Deleting a client leaves its tasks alone; they just lose the label. */
+export async function deleteClient(id: string): Promise<void> {
+  const tasks = (await db.tasks.toArray()).filter(
+    (t) => !t.deleted_at && t.client_id === id,
+  )
+  for (const task of tasks) {
+    await putLocal('tasks', revise(task, { client_id: null }))
+  }
+  await deleteLocal('clients', id)
 }
 
 export async function ensureTags(names: string[]): Promise<Tag[]> {

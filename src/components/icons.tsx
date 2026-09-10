@@ -161,3 +161,17 @@ export const RepeatIcon = (p: IconProps) => (
     <path d="M20 15a4 4 0 0 1-4 4H5M20 15l-3-3M20 15l-3 3" />
   </Svg>
 )
+
+export const SearchIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m16 16 4.5 4.5" />
+  </Svg>
+)
+
+export const BriefcaseIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="7" width="18" height="13" rx="2" />
+    <path d="M9 7V5h6v2M3 12h18" />
+  </Svg>
+)

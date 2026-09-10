@@ -2,18 +2,32 @@ import { useState } from 'react'
 import {
   AlertIcon,
   ArchiveIcon,
+  BriefcaseIcon,
   CalendarIcon,
   InboxIcon,
   ListIcon,
   PlusIcon,
+  SearchIcon,
   SettingsIcon,
   StackIcon,
   SunIcon,
   TrashIcon,
 } from '@/components/icons'
-import { createList, deleteList, updateList } from '@/lib/mutations'
-import { useLists, useOpenCounts, useUnreviewedConflictCount } from '@/lib/queries'
-import type { List } from '@/lib/types'
+import {
+  createClient,
+  createList,
+  deleteClient,
+  deleteList,
+  updateClient,
+  updateList,
+} from '@/lib/mutations'
+import {
+  useClients,
+  useLists,
+  useOpenCounts,
+  useUnreviewedConflictCount,
+} from '@/lib/queries'
+import type { Client, List } from '@/lib/types'
 import { useUi, type View } from '@/store/ui'
 
 const VIEWS: { view: View; label: string; icon: typeof SunIcon; countKey?: string }[] = [
@@ -22,6 +36,11 @@ const VIEWS: { view: View; label: string; icon: typeof SunIcon; countKey?: strin
   { view: { kind: 'inbox' }, label: 'Inbox', icon: InboxIcon, countKey: 'inbox' },
   { view: { kind: 'all' }, label: 'All', icon: StackIcon, countKey: 'all' },
   { view: { kind: 'completed' }, label: 'Completed', icon: ArchiveIcon },
+]
+
+const TOOL_VIEWS: { view: View; label: string; icon: typeof SunIcon }[] = [
+  { view: { kind: 'calendar' }, label: 'Calendar', icon: CalendarIcon },
+  { view: { kind: 'search' }, label: 'Search', icon: SearchIcon },
 ]
 
 function NavItem({
@@ -72,6 +91,7 @@ export function ListNav() {
   const view = useUi((s) => s.view)
   const setView = useUi((s) => s.setView)
   const lists = useLists()
+  const clients = useClients()
   const counts = useOpenCounts(new Date())
   const unreviewed = useUnreviewedConflictCount()
   const [adding, setAdding] = useState<{ parent: string | null } | null>(null)
@@ -168,6 +188,15 @@ export function ListNav() {
             onClick={() => setView(item.view)}
           />
         ))}
+        {TOOL_VIEWS.map((item) => (
+          <NavItem
+            key={item.label}
+            active={view.kind === item.view.kind}
+            label={item.label}
+            icon={<item.icon size={15} />}
+            onClick={() => setView(item.view)}
+          />
+        ))}
       </div>
 
       <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto scroll-thin">
@@ -201,6 +230,8 @@ export function ListNav() {
           <p className="px-2 py-1 text-xs text-faint">No lists yet.</p>
         )}
       </div>
+
+      <ClientSection clients={clients} />
 
       <div className="space-y-0.5 border-t border-line pt-2">
         <NavItem
@@ -249,6 +280,97 @@ function NewListInput({
         placeholder="List name"
         className="field px-2 py-1 text-xs"
       />
+    </div>
+  )
+}
+
+/** Optional labels for grouping work. Hidden entirely until one is added. */
+function ClientSection({ clients }: { clients: Client[] }) {
+  const view = useUi((s) => s.view)
+  const setView = useUi((s) => s.setView)
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  async function commit() {
+    const name = draft.trim()
+    setDraft('')
+    setAdding(false)
+    if (!name) return
+    const client = await createClient(name)
+    setView({ kind: 'client', clientId: client.id })
+  }
+
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-center justify-between px-2 py-1">
+        <span className="text-2xs font-semibold uppercase tracking-wide text-faint">
+          Clients
+        </span>
+        <button
+          type="button"
+          aria-label="New client"
+          className="p-0.5 text-faint hover:text-ink"
+          onClick={() => {
+            setAdding(true)
+            setDraft('')
+          }}
+        >
+          <PlusIcon size={14} />
+        </button>
+      </div>
+
+      {clients.map((client) => {
+        const active = view.kind === 'client' && view.clientId === client.id
+        return (
+          <NavItem
+            key={client.id}
+            active={active}
+            label={client.name}
+            icon={<BriefcaseIcon size={15} />}
+            onClick={() => setView({ kind: 'client', clientId: client.id })}
+          >
+            <span className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+              <button
+                type="button"
+                aria-label={`Rename ${client.name}`}
+                className="p-1 font-mono text-2xs text-faint hover:text-ink"
+                onClick={() => {
+                  const next = window.prompt('Rename client', client.name)
+                  if (next?.trim()) void updateClient(client, { name: next.trim() })
+                }}
+              >
+                Aa
+              </button>
+              <button
+                type="button"
+                aria-label={`Delete ${client.name}`}
+                className="p-1 text-faint hover:text-p1"
+                onClick={() => {
+                  if (window.confirm(`Delete "${client.name}"? Its tasks stay put.`)) {
+                    void deleteClient(client.id)
+                    if (active) setView({ kind: 'today' })
+                  }
+                }}
+              >
+                <TrashIcon size={13} />
+              </button>
+            </span>
+          </NavItem>
+        )
+      })}
+
+      {adding && (
+        <NewListInput
+          draft={draft}
+          setDraft={setDraft}
+          onCommit={commit}
+          onCancel={() => setAdding(false)}
+          indent={0}
+        />
+      )}
+      {clients.length === 0 && !adding && (
+        <p className="px-2 py-1 text-xs text-faint">None yet.</p>
+      )}
     </div>
   )
 }

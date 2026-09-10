@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
 import { addDaysISO, todayISO } from './time'
-import type { BaseRow, ConflictRecord, List, Tag, Task, TaskTag } from './types'
+import type { BaseRow, Client, ConflictRecord, List, Tag, Task, TaskTag } from './types'
 import type { View } from '@/store/ui'
 
 const alive = <T extends BaseRow>(rows: T[]): T[] => rows.filter((r) => !r.deleted_at)
@@ -32,6 +32,15 @@ export function useLists(): List[] {
       return rows.sort(
         (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name),
       )
+    }, []) ?? []
+  )
+}
+
+export function useClients(): Client[] {
+  return (
+    useLiveQuery(async () => {
+      const rows = alive(await db.clients.toArray())
+      return rows.sort((a, b) => a.name.localeCompare(b.name))
     }, []) ?? []
   )
 }
@@ -89,7 +98,14 @@ export interface TaskGroup {
  * Date-driven views list every matching task, subtasks included; the list-shaped
  * views show top-level tasks and nest their children underneath.
  */
-export function selectGroups(tasks: Task[], view: View, now: Date): TaskGroup[] {
+export function selectGroups(
+  tasks: Task[],
+  view: View,
+  now: Date,
+  /** taskId -> lowercased haystack (title, notes and tag names). */
+  searchIndex?: Map<string, string>,
+  query = '',
+): TaskGroup[] {
   const today = todayISO(now)
   const open = tasks.filter(isOpen)
 
@@ -125,6 +141,28 @@ export function selectGroups(tasks: Task[], view: View, now: Date): TaskGroup[] 
           (b.completed_at ?? b.updated_at).localeCompare(a.completed_at ?? a.updated_at),
         )
       return [{ key: 'completed', label: 'Completed', tasks: done }]
+    }
+
+    case 'search': {
+      const needle = query.trim().toLowerCase()
+      if (!needle) return []
+      const rows = tasks
+        .filter((t) => (searchIndex?.get(t.id) ?? t.title.toLowerCase()).includes(needle))
+        .sort(compareTasks)
+      // Open first, then the ones already dealt with.
+      const openRows = rows.filter(isOpen)
+      const doneRows = rows.filter((t) => !isOpen(t))
+      return [
+        { key: 'open', label: 'Open', tasks: openRows },
+        { key: 'done', label: 'Completed', tasks: doneRows },
+      ].filter((g) => g.tasks.length > 0)
+    }
+
+    case 'client': {
+      const rows = open
+        .filter((t) => t.client_id === view.clientId && !t.parent_task_id)
+        .sort(compareTasks)
+      return [{ key: 'client', label: 'Tasks', tasks: rows }]
     }
 
     case 'inbox': {

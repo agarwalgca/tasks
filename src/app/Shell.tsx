@@ -7,9 +7,11 @@ import {
   InboxIcon,
   MenuIcon,
   PlusIcon,
+  SearchIcon,
   StackIcon,
   SunIcon,
 } from '@/components/icons'
+import { CalendarView } from '@/features/calendar/CalendarView'
 import { ListNav } from '@/features/lists/ListNav'
 import { QuickAdd } from '@/features/quickadd/QuickAdd'
 import { SettingsScreen } from '@/features/settings/SettingsScreen'
@@ -17,7 +19,7 @@ import { ConflictsScreen } from '@/features/sync/ConflictsScreen'
 import { SyncBadge } from '@/features/sync/SyncBadge'
 import { TaskDetail } from '@/features/tasks/TaskDetail'
 import { TaskList } from '@/features/tasks/TaskList'
-import { useLists } from '@/lib/queries'
+import { useClients, useLists } from '@/lib/queries'
 import { useUi, viewTitle, type View } from '@/store/ui'
 import { SHORTCUTS, useShortcuts } from './shortcuts'
 
@@ -67,12 +69,18 @@ export function Shell({ session }: { session: Session }) {
   const desktop = useIsDesktop()
   const now = useCoarseNow()
   const lists = useLists()
+  const clients = useClients()
+  const searchQuery = useUi((s) => s.searchQuery)
+  const setSearchQuery = useUi((s) => s.setSearchQuery)
   useShortcuts(desktop)
 
-  const listName = lists.find((l) => l.id === view.listId)?.name
-  const title = viewTitle(view, listName)
+  const namedTarget =
+    view.kind === 'client'
+      ? clients.find((c) => c.id === view.clientId)?.name
+      : lists.find((l) => l.id === view.listId)?.name
+  const title = viewTitle(view, namedTarget)
   const listId = view.kind === 'list' ? (view.listId ?? null) : null
-  const showsTasks = !['conflicts', 'settings'].includes(view.kind)
+  const showsTasks = !['conflicts', 'settings', 'calendar', 'search'].includes(view.kind)
 
   return (
     <div className="flex h-full flex-col md:flex-row">
@@ -141,6 +149,32 @@ export function Shell({ session }: { session: Session }) {
           {!desktop && <SyncBadge />}
         </header>
 
+        {view.kind === 'search' && (
+          <div className="border-b border-line px-3 py-2 md:px-4">
+            <div className="flex items-center gap-2 rounded-lg border border-line bg-surface px-2.5">
+              <SearchIcon className="shrink-0 text-faint" size={16} />
+              <input
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search titles, notes and tags"
+                className="min-w-0 flex-1 bg-transparent py-2.5 outline-none placeholder:text-faint"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="btn-quiet px-1.5 py-0.5 text-2xs"
+                  onClick={() => setSearchQuery('')}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {desktop && showsTasks && (
           <div className="border-b border-line px-4 py-2">
             <QuickAdd listId={listId} />
@@ -152,6 +186,8 @@ export function Shell({ session }: { session: Session }) {
             <ConflictsScreen />
           ) : view.kind === 'settings' ? (
             <SettingsScreen email={session.user.email} />
+          ) : view.kind === 'calendar' ? (
+            <CalendarView now={now} />
           ) : (
             <TaskList view={view} now={now} />
           )}
