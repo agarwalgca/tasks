@@ -6,6 +6,7 @@ import { APP_TZ } from '@/lib/time'
 import { useSyncStore } from '@/store/sync'
 import { useUi, type Theme } from '@/store/ui'
 import { downloadExport } from '@/features/export/exportData'
+import { changePassword } from '@/features/auth/changePassword'
 import { useLiveQuery } from 'dexie-react-hooks'
 
 const THEMES: Theme[] = ['light', 'dark', 'system']
@@ -94,9 +95,11 @@ export function SettingsScreen({ email }: { email: string | undefined }) {
           Account
         </h2>
         <p className="mb-2 font-mono text-2xs text-muted">{email ?? '—'}</p>
+        <ChangePassword />
+
         <button
           type="button"
-          className="btn-outline text-xs"
+          className="btn-outline mt-4 text-xs"
           onClick={() => void supabase.auth.signOut()}
         >
           Sign out
@@ -116,5 +119,91 @@ function Row({ label, value }: { label: string; value: string }) {
       <dt className="w-20 shrink-0 text-faint">{label}</dt>
       <dd className="min-w-0 break-all">{value}</dd>
     </div>
+  )
+}
+
+function ChangePassword() {
+  const [open, setOpen] = useState(false)
+  const [password, setPassword] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      await changePassword(password, confirmation)
+      setPassword('')
+      setConfirmation('')
+      setOpen(false)
+      setDone(true)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <div className="mb-1">
+        <button
+          type="button"
+          className="btn-outline text-xs"
+          onClick={() => {
+            setOpen(true)
+            setDone(false)
+          }}
+        >
+          Change password
+        </button>
+        {done && <p className="mt-2 text-xs text-accent">Password updated.</p>}
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={submit} className="mb-1 max-w-xs space-y-2">
+      <input
+        className="field"
+        type="password"
+        autoComplete="new-password"
+        placeholder="New password"
+        required
+        minLength={8}
+        autoFocus
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      <input
+        className="field"
+        type="password"
+        autoComplete="new-password"
+        placeholder="Confirm password"
+        required
+        minLength={8}
+        value={confirmation}
+        onChange={(e) => setConfirmation(e.target.value)}
+      />
+      {error && <p className="text-xs text-p1">{error}</p>}
+      <div className="flex gap-2">
+        <button type="submit" className="btn-primary text-xs" disabled={busy}>
+          {busy ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          type="button"
+          className="btn-quiet text-xs"
+          onClick={() => {
+            setOpen(false)
+            setError(null)
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   )
 }

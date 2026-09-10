@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Shell } from '@/app/Shell'
 import { AuthScreen } from '@/features/auth/AuthScreen'
 import { SetupScreen } from '@/features/auth/SetupScreen'
+import { UpdatePasswordScreen } from '@/features/auth/UpdatePasswordScreen'
 import { useSession } from '@/features/auth/useSession'
 import { db } from '@/lib/db'
 import { isConfigured } from '@/lib/supabase'
@@ -49,7 +50,7 @@ function useTheme(): void {
 
 function Root() {
   useTheme()
-  const { data: session, isLoading } = useSession()
+  const { session, isLoading, recovering, finishRecovery } = useSession()
   const userId = session?.user.id ?? null
 
   useEffect(() => {
@@ -70,6 +71,7 @@ function Root() {
     )
   }
   if (!session) return <AuthScreen />
+  if (recovering) return <UpdatePasswordScreen onDone={finishRecovery} />
   return <Shell session={session} />
 }
 

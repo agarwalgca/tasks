@@ -30,7 +30,12 @@ been exercised on real infrastructure.
 - Sync status is always in the header: synced / N pending / offline / error.
 
 **App**
-- Email + password auth, single user.
+- Email + password auth, single user, with password recovery: "Forgot
+  password?" sends a reset link, the link opens a "set a new password" screen,
+  and Settings has a Change password form for rotating it while signed in.
+  `detectSessionInUrl` is on so the link's token is consumed and the hash
+  cleaned; the recovery screen is gated behind a real session, so a forged
+  `#type=recovery` hash just shows the sign-in form.
 - Lists with one level of nesting; task CRUD; subtasks one level deep;
   priorities; tags; due date with optional time.
 - Views: Inbox, Today, Next 7 Days, All, per-list, Completed.
@@ -80,9 +85,8 @@ Supabase credentials come from repository secrets rather than the repo.
 - A project's region cannot be changed after creation; make a new project and
   move the data. This one was rebuilt in Mumbai after starting in Seoul.
 - Supabase requires email confirmation by default, and its default Site URL is
-  `http://localhost:3000` — set it to the dev port or the confirmation link
-  lands on a dead page. `detectSessionInUrl` is false, so the token in the
-  redirect hash is ignored and you sign in with the password afterwards.
+  `http://localhost:3000` — set it to the deployed URL, and keep localhost in
+  the redirect allow list so local development still works.
 - The service worker only exists in production builds. `npm run dev` will never
   survive an offline reload; use `npm run build && npm run preview` to test it.
 

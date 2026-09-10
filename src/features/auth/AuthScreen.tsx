@@ -1,8 +1,20 @@
 import { useState, type FormEvent } from 'react'
-import { supabase } from '@/lib/supabase'
+import { appUrl, supabase } from '@/lib/supabase'
 import { CheckIcon } from '@/components/icons'
 
-type Mode = 'sign-in' | 'sign-up'
+type Mode = 'sign-in' | 'sign-up' | 'forgot'
+
+const SUBTITLE: Record<Mode, string> = {
+  'sign-in': 'Sign in to sync',
+  'sign-up': 'Create your account',
+  forgot: 'Reset your password',
+}
+
+const ACTION: Record<Mode, string> = {
+  'sign-in': 'Sign in',
+  'sign-up': 'Create account',
+  forgot: 'Send reset link',
+}
 
 export function AuthScreen() {
   const [mode, setMode] = useState<Mode>('sign-in')
@@ -11,6 +23,12 @@ export function AuthScreen() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+
+  function switchTo(next: Mode) {
+    setMode(next)
+    setError(null)
+    setNotice(null)
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -21,13 +39,21 @@ export function AuthScreen() {
       if (mode === 'sign-in') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-      } else {
+      } else if (mode === 'sign-up') {
         const { data, error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
         if (!data.session) {
           setNotice('Check your email to confirm the address, then sign in.')
           setMode('sign-in')
         }
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: appUrl,
+        })
+        if (error) throw error
+        setNotice(
+          'If that address has an account, a reset link is on its way. Open it on this device.',
+        )
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
@@ -45,9 +71,7 @@ export function AuthScreen() {
           </span>
           <div>
             <h1 className="text-base font-semibold leading-tight">Tasks</h1>
-            <p className="text-xs text-muted">
-              {mode === 'sign-in' ? 'Sign in to sync' : 'Create your account'}
-            </p>
+            <p className="text-xs text-muted">{SUBTITLE[mode]}</p>
           </div>
         </div>
 
@@ -63,18 +87,23 @@ export function AuthScreen() {
               onChange={(e) => setEmail(e.target.value)}
             />
           </label>
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted">Password</span>
-            <input
-              className="field"
-              type="password"
-              autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </label>
+
+          {mode !== 'forgot' && (
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-muted">Password</span>
+              <input
+                className="field"
+                type="password"
+                autoComplete={
+                  mode === 'sign-in' ? 'current-password' : 'new-password'
+                }
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+          )}
 
           {error && (
             <p className="rounded-md bg-p1/10 px-3 py-2 text-xs text-p1">{error}</p>
@@ -86,23 +115,39 @@ export function AuthScreen() {
           )}
 
           <button type="submit" className="btn-primary w-full py-2" disabled={busy}>
-            {busy ? 'Working…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}
+            {busy ? 'Working…' : ACTION[mode]}
           </button>
         </form>
 
-        <button
-          type="button"
-          className="mt-4 text-xs text-muted underline underline-offset-2 hover:text-ink"
-          onClick={() => {
-            setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in')
-            setError(null)
-            setNotice(null)
-          }}
-        >
-          {mode === 'sign-in'
-            ? 'Need an account? Create one'
-            : 'Already have an account? Sign in'}
-        </button>
+        <div className="mt-4 flex flex-col items-start gap-2 text-xs">
+          {mode === 'sign-in' && (
+            <>
+              <button
+                type="button"
+                className="text-muted underline underline-offset-2 hover:text-ink"
+                onClick={() => switchTo('forgot')}
+              >
+                Forgot password?
+              </button>
+              <button
+                type="button"
+                className="text-muted underline underline-offset-2 hover:text-ink"
+                onClick={() => switchTo('sign-up')}
+              >
+                Need an account? Create one
+              </button>
+            </>
+          )}
+          {mode !== 'sign-in' && (
+            <button
+              type="button"
+              className="text-muted underline underline-offset-2 hover:text-ink"
+              onClick={() => switchTo('sign-in')}
+            >
+              Back to sign in
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

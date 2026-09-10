@@ -14,7 +14,18 @@ export const supabase: SupabaseClient = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: false,
+      detectSessionInUrl: true,
     },
   },
 )
+
+/**
+ * A recovery email lands with `type=recovery` in the URL hash. Read it at module
+ * load, before supabase-js consumes the hash and cleans the address bar, so the
+ * app can show the "set a new password" form instead of flashing the task list.
+ */
+export const arrivedFromRecoveryLink =
+  new URLSearchParams(window.location.hash.slice(1)).get('type') === 'recovery'
+
+/** Where auth emails send you back to; matches the deployed base path. */
+export const appUrl = `${window.location.origin}${import.meta.env.BASE_URL}`
