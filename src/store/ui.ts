@@ -11,6 +11,7 @@ export type ViewKind =
   | 'client'
   | 'calendar'
   | 'search'
+  | 'filter'
   | 'conflicts'
   | 'settings'
 
@@ -18,6 +19,7 @@ export interface View {
   kind: ViewKind
   listId?: string
   clientId?: string
+  filterId?: string
 }
 
 export type Theme = 'light' | 'dark' | 'system'
@@ -89,6 +91,8 @@ export function viewTitle(view: View, listName?: string): string {
       return 'Calendar'
     case 'search':
       return 'Search'
+    case 'filter':
+      return listName ?? 'Filter'
     case 'client':
       return listName ?? 'Client'
     case 'list':

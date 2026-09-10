@@ -2,7 +2,7 @@ import { db } from './db'
 import { newId } from './ids'
 import { requireUserId } from './session'
 import { nowISO, todayISO } from './time'
-import type { Client, List, Tag, Task, TaskTag } from './types'
+import type { Client, List, SavedFilter, Tag, Task, TaskTag } from './types'
 import { firstOccurrenceFrom, nextDueDate } from '@/features/recurrence/recurrence'
 import type { ParsedQuickAdd } from '@/features/quickadd/parse'
 import { deleteLocal, putLocal, putLocalMany, revise } from '@/sync/writes'
@@ -243,6 +243,34 @@ export async function deleteClient(id: string): Promise<void> {
     await putLocal('tasks', revise(task, { client_id: null }))
   }
   await deleteLocal('clients', id)
+}
+
+export async function createSavedFilter(name: string): Promise<SavedFilter> {
+  const at = nowISO()
+  const existing = (await db.saved_filters.toArray()).filter((f) => !f.deleted_at)
+  const filter: SavedFilter = {
+    id: newId(),
+    user_id: requireUserId(),
+    name: name.trim() || 'New filter',
+    criteria: {},
+    sort_order: await topOrder(existing),
+    created_at: at,
+    updated_at: at,
+    deleted_at: null,
+  }
+  await putLocal('saved_filters', filter)
+  return filter
+}
+
+export async function updateSavedFilter(
+  filter: SavedFilter,
+  patch: Partial<SavedFilter>,
+): Promise<void> {
+  await putLocal('saved_filters', revise(filter, patch))
+}
+
+export async function deleteSavedFilter(id: string): Promise<void> {
+  await deleteLocal('saved_filters', id)
 }
 
 export async function ensureTags(names: string[]): Promise<Tag[]> {

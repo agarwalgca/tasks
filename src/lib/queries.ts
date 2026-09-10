@@ -1,7 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
 import { addDaysISO, todayISO } from './time'
-import type { BaseRow, Client, ConflictRecord, List, Tag, Task, TaskTag } from './types'
+import type {
+  BaseRow,
+  Client,
+  ConflictRecord,
+  List,
+  SavedFilter,
+  Tag,
+  Task,
+  TaskTag,
+} from './types'
 import type { View } from '@/store/ui'
 
 const alive = <T extends BaseRow>(rows: T[]): T[] => rows.filter((r) => !r.deleted_at)
@@ -41,6 +50,17 @@ export function useClients(): Client[] {
     useLiveQuery(async () => {
       const rows = alive(await db.clients.toArray())
       return rows.sort((a, b) => a.name.localeCompare(b.name))
+    }, []) ?? []
+  )
+}
+
+export function useSavedFilters(): SavedFilter[] {
+  return (
+    useLiveQuery(async () => {
+      const rows = alive(await db.saved_filters.toArray())
+      return rows.sort(
+        (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name),
+      )
     }, []) ?? []
   )
 }

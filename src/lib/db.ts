@@ -6,6 +6,7 @@ import type {
   OutboxEntry,
   Profile,
   Reminder,
+  SavedFilter,
   Tag,
   Task,
   TaskTag,
@@ -35,6 +36,7 @@ export class AppDatabase extends Dexie {
   tasks!: Table<Task, string>
   task_tags!: Table<TaskTag, string>
   reminders!: Table<Reminder, string>
+  saved_filters!: Table<SavedFilter, string>
   outbox!: Table<OutboxEntry, number>
   conflicts!: Table<ConflictRecord, string>
   meta!: Table<MetaRow, string>
@@ -52,6 +54,10 @@ export class AppDatabase extends Dexie {
       outbox: '++seq, table, [table+row_id], queued_at',
       conflicts: 'id, detected_at, reviewed_at',
       meta: 'key',
+    })
+
+    this.version(2).stores({
+      saved_filters: 'id, updated_at, sort_order',
     })
   }
 

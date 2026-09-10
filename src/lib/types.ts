@@ -77,6 +77,25 @@ export interface Reminder extends BaseRow {
   fired_at: string | null
 }
 
+/** Criteria are read and written only here, so they live in one jsonb blob. */
+export interface FilterCriteria {
+  text?: string
+  /** 'any' | 'overdue' | 'today' | 'next7' | 'none' */
+  due?: 'any' | 'overdue' | 'today' | 'next7' | 'none'
+  priorities?: number[]
+  listIds?: string[]
+  clientIds?: string[]
+  tagIds?: string[]
+  includeCompleted?: boolean
+}
+
+export interface SavedFilter extends BaseRow {
+  user_id: string
+  name: string
+  criteria: FilterCriteria
+  sort_order: number
+}
+
 export interface RowTypes {
   profiles: Profile
   clients: Client
@@ -85,6 +104,7 @@ export interface RowTypes {
   tasks: Task
   task_tags: TaskTag
   reminders: Reminder
+  saved_filters: SavedFilter
 }
 
 export type SyncTable = keyof RowTypes
@@ -102,6 +122,7 @@ export const SYNC_TABLES: SyncTable[] = [
   'tasks',
   'task_tags',
   'reminders',
+  'saved_filters',
 ]
 
 /** Rows waiting to be pushed. Coalesced by (table, row_id) at push time. */

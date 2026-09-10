@@ -175,3 +175,9 @@ export const BriefcaseIcon = (p: IconProps) => (
     <path d="M9 7V5h6v2M3 12h18" />
   </Svg>
 )
+
+export const FilterIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 5h18l-7 8v6l-4 2v-8Z" />
+  </Svg>
+)

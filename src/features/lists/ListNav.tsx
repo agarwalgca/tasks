@@ -8,6 +8,7 @@ import {
   ListIcon,
   PlusIcon,
   SearchIcon,
+  FilterIcon,
   SettingsIcon,
   StackIcon,
   SunIcon,
@@ -16,6 +17,7 @@ import {
 import {
   createClient,
   createList,
+  createSavedFilter,
   deleteClient,
   deleteList,
   updateClient,
@@ -25,9 +27,10 @@ import {
   useClients,
   useLists,
   useOpenCounts,
+  useSavedFilters,
   useUnreviewedConflictCount,
 } from '@/lib/queries'
-import type { Client, List } from '@/lib/types'
+import type { Client, List, SavedFilter } from '@/lib/types'
 import { useUi, type View } from '@/store/ui'
 
 const VIEWS: { view: View; label: string; icon: typeof SunIcon; countKey?: string }[] = [
@@ -92,6 +95,7 @@ export function ListNav() {
   const setView = useUi((s) => s.setView)
   const lists = useLists()
   const clients = useClients()
+  const savedFilters = useSavedFilters()
   const counts = useOpenCounts(new Date())
   const unreviewed = useUnreviewedConflictCount()
   const [adding, setAdding] = useState<{ parent: string | null } | null>(null)
@@ -231,6 +235,8 @@ export function ListNav() {
         )}
       </div>
 
+      <FilterSection filters={savedFilters} />
+
       <ClientSection clients={clients} />
 
       <div className="space-y-0.5 border-t border-line pt-2">
@@ -369,6 +375,66 @@ function ClientSection({ clients }: { clients: Client[] }) {
         />
       )}
       {clients.length === 0 && !adding && (
+        <p className="px-2 py-1 text-xs text-faint">None yet.</p>
+      )}
+    </div>
+  )
+}
+
+function FilterSection({ filters }: { filters: SavedFilter[] }) {
+  const view = useUi((s) => s.view)
+  const setView = useUi((s) => s.setView)
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState('')
+
+  async function commit() {
+    const name = draft.trim()
+    setDraft('')
+    setAdding(false)
+    if (!name) return
+    const filter = await createSavedFilter(name)
+    setView({ kind: 'filter', filterId: filter.id })
+  }
+
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-center justify-between px-2 py-1">
+        <span className="text-2xs font-semibold uppercase tracking-wide text-faint">
+          Filters
+        </span>
+        <button
+          type="button"
+          aria-label="New filter"
+          className="p-0.5 text-faint hover:text-ink"
+          onClick={() => {
+            setAdding(true)
+            setDraft('')
+          }}
+        >
+          <PlusIcon size={14} />
+        </button>
+      </div>
+
+      {filters.map((filter) => (
+        <NavItem
+          key={filter.id}
+          active={view.kind === 'filter' && view.filterId === filter.id}
+          label={filter.name}
+          icon={<FilterIcon size={15} />}
+          onClick={() => setView({ kind: 'filter', filterId: filter.id })}
+        />
+      ))}
+
+      {adding && (
+        <NewListInput
+          draft={draft}
+          setDraft={setDraft}
+          onCommit={commit}
+          onCancel={() => setAdding(false)}
+          indent={0}
+        />
+      )}
+      {filters.length === 0 && !adding && (
         <p className="px-2 py-1 text-xs text-faint">None yet.</p>
       )}
     </div>

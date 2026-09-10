@@ -12,6 +12,7 @@ import {
   SunIcon,
 } from '@/components/icons'
 import { CalendarView } from '@/features/calendar/CalendarView'
+import { FilterEditor } from '@/features/filters/FilterEditor'
 import { ListNav } from '@/features/lists/ListNav'
 import { QuickAdd } from '@/features/quickadd/QuickAdd'
 import { SettingsScreen } from '@/features/settings/SettingsScreen'
@@ -19,7 +20,7 @@ import { ConflictsScreen } from '@/features/sync/ConflictsScreen'
 import { SyncBadge } from '@/features/sync/SyncBadge'
 import { TaskDetail } from '@/features/tasks/TaskDetail'
 import { TaskList } from '@/features/tasks/TaskList'
-import { useClients, useLists } from '@/lib/queries'
+import { useClients, useLists, useSavedFilters } from '@/lib/queries'
 import { useUi, viewTitle, type View } from '@/store/ui'
 import { SHORTCUTS, useShortcuts } from './shortcuts'
 
@@ -70,17 +71,25 @@ export function Shell({ session }: { session: Session }) {
   const now = useCoarseNow()
   const lists = useLists()
   const clients = useClients()
+  const savedFilters = useSavedFilters()
+  const [editingFilter, setEditingFilter] = useState(false)
   const searchQuery = useUi((s) => s.searchQuery)
   const setSearchQuery = useUi((s) => s.setSearchQuery)
   useShortcuts(desktop)
 
+  const activeFilter =
+    view.kind === 'filter' ? savedFilters.find((f) => f.id === view.filterId) : undefined
   const namedTarget =
     view.kind === 'client'
       ? clients.find((c) => c.id === view.clientId)?.name
-      : lists.find((l) => l.id === view.listId)?.name
+      : view.kind === 'filter'
+        ? activeFilter?.name
+        : lists.find((l) => l.id === view.listId)?.name
   const title = viewTitle(view, namedTarget)
   const listId = view.kind === 'list' ? (view.listId ?? null) : null
-  const showsTasks = !['conflicts', 'settings', 'calendar', 'search'].includes(view.kind)
+  const showsTasks = !['conflicts', 'settings', 'calendar', 'search', 'filter'].includes(
+    view.kind,
+  )
 
   return (
     <div className="flex h-full flex-col md:flex-row">
@@ -137,6 +146,15 @@ export function Shell({ session }: { session: Session }) {
             </button>
           )}
           <h1 className="min-w-0 flex-1 truncate text-sm font-semibold">{title}</h1>
+          {activeFilter && (
+            <button
+              type="button"
+              className="btn-quiet px-2 py-1 text-2xs"
+              onClick={() => setEditingFilter((open) => !open)}
+            >
+              {editingFilter ? 'Done' : 'Edit'}
+            </button>
+          )}
           {desktop && showsTasks && (
             <button
               type="button"
@@ -148,6 +166,10 @@ export function Shell({ session }: { session: Session }) {
           )}
           {!desktop && <SyncBadge />}
         </header>
+
+        {activeFilter && editingFilter && (
+          <FilterEditor filter={activeFilter} onClose={() => setEditingFilter(false)} />
+        )}
 
         {view.kind === 'search' && (
           <div className="border-b border-line px-3 py-2 md:px-4">
