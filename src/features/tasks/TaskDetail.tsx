@@ -9,6 +9,7 @@ import {
   updateTask,
 } from '@/lib/mutations'
 import { childrenOf, useAllTasks, useLists, useTags, useTaskTags } from '@/lib/queries'
+import { RecurrencePicker } from '@/features/recurrence/RecurrencePicker'
 import type { Task, TaskStatus } from '@/lib/types'
 
 const PRIORITIES: { value: number; label: string; tone: string }[] = [
@@ -237,6 +238,10 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
             </select>
           </Field>
         </div>
+
+        <Field label="Repeat">
+          <RecurrencePicker task={task} onChange={(patch) => void updateTask(task, patch)} />
+        </Field>
 
         <Field label="Tags">
           <input

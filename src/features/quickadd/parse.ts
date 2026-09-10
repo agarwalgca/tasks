@@ -4,6 +4,7 @@ import {
   todayISO,
   weekdayISO,
 } from '@/lib/time'
+import { parseRecurrencePhrase } from '@/features/recurrence/recurrence'
 
 export interface ParsedQuickAdd {
   title: string
@@ -12,6 +13,7 @@ export interface ParsedQuickAdd {
   due_time: string | null
   priority: number
   tags: string[]
+  rrule: string | null
 }
 
 interface Span {
@@ -92,6 +94,7 @@ export function parseQuickAdd(
   let dueTime: string | null = null
   let priority = 0
   const tags: string[] = []
+  let rrule: string | null = null
   let sawTonight = false
 
   const scan = (
@@ -123,6 +126,17 @@ export function parseQuickAdd(
     if (!tags.includes(name)) tags.push(name)
     return true
   })
+
+  // Recurrence is claimed before the date matchers so "every monday" reads as a
+  // repeat rather than a due date.
+  const recurrence = parseRecurrencePhrase(text)
+  if (recurrence) {
+    const start = text.toLowerCase().indexOf(recurrence.matched.toLowerCase())
+    if (start >= 0 && !overlaps(claimed, start, start + recurrence.matched.length)) {
+      rrule = recurrence.rrule
+      claimed.push({ start, end: start + recurrence.matched.length })
+    }
+  }
 
   // 2026-09-12
   scan(/(^|\s)(\d{4})-(\d{2})-(\d{2})(?=\s|$)/g, (m) => {
@@ -262,5 +276,6 @@ export function parseQuickAdd(
     due_time: dueTime,
     priority,
     tags,
+    rrule,
   }
 }

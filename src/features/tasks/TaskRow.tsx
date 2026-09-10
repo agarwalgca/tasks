@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckIcon, NoteIcon } from '@/components/icons'
+import { CheckIcon, NoteIcon, RepeatIcon } from '@/components/icons'
 import { setTaskStatus } from '@/lib/mutations'
 import { formatDue, isOverdue } from '@/lib/time'
 import type { List, Tag, Task } from '@/lib/types'
@@ -89,9 +89,10 @@ export function TaskRow({
           >
             {task.title}
           </span>
-          {(tags.length > 0 || task.notes) && (
+          {(tags.length > 0 || task.notes || task.rrule) && (
             <span className="mt-0.5 flex items-center gap-1.5 text-2xs text-faint">
               {task.notes && <NoteIcon size={11} />}
+              {task.rrule && <RepeatIcon size={11} />}
               {tags.map((tag) => (
                 <span key={tag.id} className="truncate">
                   #{tag.name}

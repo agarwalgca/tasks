@@ -1,8 +1,9 @@
 import { db } from './db'
 import { newId } from './ids'
 import { requireUserId } from './session'
-import { nowISO } from './time'
+import { nowISO, todayISO } from './time'
 import type { List, Tag, Task, TaskTag } from './types'
+import { firstOccurrenceFrom, nextDueDate } from '@/features/recurrence/recurrence'
 import type { ParsedQuickAdd } from '@/features/quickadd/parse'
 import { deleteLocal, putLocal, putLocalMany, revise } from '@/sync/writes'
 
@@ -52,10 +53,106 @@ export async function updateTask(task: Task, patch: Partial<Task>): Promise<Task
 }
 
 export async function setTaskStatus(task: Task, done: boolean): Promise<void> {
-  await updateTask(task, {
+  // Spawning stamps a series id on the original, so carry that forward rather
+  // than writing the stale copy back over it.
+  const current =
+    done && task.rrule && task.status !== 'done'
+      ? await spawnNextOccurrence(task)
+      : task
+
+  await updateTask(current, {
     status: done ? 'done' : 'todo',
     completed_at: done ? nowISO() : null,
   })
+}
+
+/**
+ * Completing a recurring task leaves it completed and creates the next one, so
+ * Completed keeps a real history instead of a single row that keeps moving.
+ * Tags come across, and subtasks are recreated unticked — a recurring checklist
+ * is only useful if its steps come back.
+ */
+async function spawnNextOccurrence(task: Task): Promise<Task> {
+  const completedOn = todayISO()
+  const due = nextDueDate(
+    task.rrule!,
+    task.recurrence_anchor ?? 'due_date',
+    task.due_date,
+    completedOn,
+  )
+  if (!due) return task
+
+  const at = nowISO()
+  const seriesId = task.recurrence_series_id ?? task.id
+  const next: Task = {
+    ...task,
+    id: newId(),
+    status: 'todo',
+    completed_at: null,
+    due_date: due,
+    start_date: shiftStart(task, due),
+    source: 'recurrence',
+    recurrence_series_id: seriesId,
+    created_at: at,
+    updated_at: at,
+    deleted_at: null,
+  }
+
+  await putLocal('tasks', next)
+
+  // The originating task keeps the series id too, so the history stays linked.
+  const origin = task.recurrence_series_id
+    ? task
+    : await putLocal('tasks', revise(task, { recurrence_series_id: seriesId }))
+
+  const links = (await db.task_tags.where('task_id').equals(task.id).toArray()).filter(
+    (link) => !link.deleted_at,
+  )
+  if (links.length > 0) {
+    await putLocalMany(
+      'task_tags',
+      links.map((link) => ({
+        ...link,
+        id: newId(),
+        task_id: next.id,
+        created_at: at,
+        updated_at: at,
+      })),
+    )
+  }
+
+  const children = (await db.tasks.where('parent_task_id').equals(task.id).toArray())
+    .filter((child) => !child.deleted_at)
+  if (children.length > 0) {
+    await putLocalMany(
+      'tasks',
+      children.map((child) => ({
+        ...child,
+        id: newId(),
+        parent_task_id: next.id,
+        status: 'todo' as const,
+        completed_at: null,
+        source: 'recurrence' as const,
+        created_at: at,
+        updated_at: at,
+        deleted_at: null,
+      })),
+    )
+  }
+
+  return origin
+}
+
+/** Keeps the lead time between start and due the same across occurrences. */
+function shiftStart(task: Task, nextDue: string): string | null {
+  if (!task.start_date || !task.due_date) return task.start_date
+  const lead = Math.round(
+    (Date.parse(`${task.due_date}T00:00:00Z`) -
+      Date.parse(`${task.start_date}T00:00:00Z`)) /
+      86_400_000,
+  )
+  const shifted = new Date(Date.parse(`${nextDue}T00:00:00Z`) - lead * 86_400_000)
+  return shifted.toISOString().slice(0, 10)
 }
 
 export async function deleteTask(id: string): Promise<void> {
@@ -186,12 +283,18 @@ export async function createTaskFromQuickAdd(
   listId: string | null,
 ): Promise<Task> {
   const tags = await ensureTags(parsed.tags)
+  // "every monday" with no date given should land on the coming Monday.
+  const due =
+    parsed.due_date ?? (parsed.rrule ? firstOccurrenceFrom(parsed.rrule, todayISO()) : null)
+
   const task = await createTask({
     title: parsed.title,
     list_id: listId,
-    due_date: parsed.due_date,
+    due_date: due,
     due_time: parsed.due_time ? `${parsed.due_time}:00` : null,
     priority: parsed.priority,
+    rrule: parsed.rrule,
+    recurrence_anchor: parsed.rrule ? 'due_date' : null,
   })
   if (tags.length > 0) await setTaskTags(task.id, tags.map((t) => t.id))
   return task

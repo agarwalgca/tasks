@@ -13,6 +13,7 @@ describe('parseQuickAdd', () => {
       due_time: '17:00',
       priority: 1,
       tags: ['work'],
+      rrule: null,
     })
   })
 
@@ -23,6 +24,7 @@ describe('parseQuickAdd', () => {
       due_time: null,
       priority: 0,
       tags: [],
+      rrule: null,
     })
   })
 
@@ -92,6 +94,7 @@ describe('parseQuickAdd', () => {
       due_time: '09:00',
       priority: 0,
       tags: ['work', 'team'],
+      rrule: null,
     })
     expect(parse('urgent thing !p1').priority).toBe(1)
     expect(parse('someday thing !p3').priority).toBe(3)
@@ -106,12 +109,39 @@ describe('parseQuickAdd', () => {
       due_time: null,
       priority: 0,
       tags: [],
+      rrule: null,
     })
     expect(parse('feb 30 party').due_date).toBeNull()
   })
 
   it('keeps the raw text when nothing but tokens were typed', () => {
     expect(parse('tomorrow').title).toBe('tomorrow')
+  })
+
+  it('reads recurrence, and does not mistake it for a due date', () => {
+    expect(parse('standup every monday')).toMatchObject({
+      title: 'standup',
+      rrule: 'RRULE:FREQ=WEEKLY;BYDAY=MO',
+      due_date: null,
+    })
+    expect(parse('water plants every 3 days')).toMatchObject({
+      title: 'water plants',
+      rrule: 'RRULE:FREQ=DAILY;INTERVAL=3',
+    })
+    expect(parse('file gst every month !p1 #finance')).toMatchObject({
+      title: 'file gst',
+      rrule: 'RRULE:FREQ=MONTHLY',
+      priority: 1,
+      tags: ['finance'],
+    })
+  })
+
+  it('keeps an explicit due date alongside a repeat', () => {
+    expect(parse('rent every month 1/10')).toMatchObject({
+      title: 'rent',
+      rrule: 'RRULE:FREQ=MONTHLY',
+      due_date: '2026-10-01',
+    })
   })
 
   it('takes the first date and first time when several are present', () => {

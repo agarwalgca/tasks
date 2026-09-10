@@ -154,3 +154,10 @@ export const NoteIcon = (p: IconProps) => (
     <path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5" />
   </Svg>
 )
+
+export const RepeatIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 9a4 4 0 0 1 4-4h11M4 9l3-3M4 9l3 3" />
+    <path d="M20 15a4 4 0 0 1-4 4H5M20 15l-3-3M20 15l-3 3" />
+  </Svg>
+)

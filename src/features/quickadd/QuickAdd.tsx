@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarIcon, PlusIcon, TagIcon } from '@/components/icons'
+import { CalendarIcon, PlusIcon, RepeatIcon, TagIcon } from '@/components/icons'
+import { describeRrule } from '@/features/recurrence/recurrence'
 import { createTaskFromQuickAdd } from '@/lib/mutations'
 import { formatDateLabel, formatTime } from '@/lib/time'
 import { parseQuickAdd } from './parse'
@@ -97,6 +98,12 @@ export function QuickAdd({ listId, autoFocus, onCreated }: QuickAddProps) {
           {parsed.priority > 0 && (
             <span className={`chip ${PRIORITY_TONE[parsed.priority]}`}>
               {PRIORITY_LABEL[parsed.priority]}
+            </span>
+          )}
+          {parsed.rrule && (
+            <span className="chip border-accent/40 bg-accent/10 text-accent">
+              <RepeatIcon size={11} />
+              {describeRrule(parsed.rrule, parsed.due_date)}
             </span>
           )}
           {parsed.tags.map((tag) => (
