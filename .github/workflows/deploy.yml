@@ -10,10 +10,11 @@ permissions:
   pages: write
   id-token: write
 
-# A push while a deploy is running supersedes it rather than queueing.
+# Deploys queue rather than cancel: cancelling a run mid-deploy leaves the Pages
+# deployment in progress, and the next run then collides with it.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
