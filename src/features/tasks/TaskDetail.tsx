@@ -17,6 +17,7 @@ import {
   useTaskTags,
 } from '@/lib/queries'
 import { RecurrencePicker } from '@/features/recurrence/RecurrencePicker'
+import { ReminderList } from '@/features/reminders/ReminderList'
 import type { Task, TaskStatus } from '@/lib/types'
 
 const PRIORITIES: { value: number; label: string; tone: string }[] = [
@@ -268,6 +269,10 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
 
         <Field label="Repeat">
           <RecurrencePicker task={task} onChange={(patch) => void updateTask(task, patch)} />
+        </Field>
+
+        <Field label="Reminders">
+          <ReminderList task={task} />
         </Field>
 
         <Field label="Tags">

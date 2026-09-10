@@ -40,6 +40,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Push and notification-click handling lives in public/push-sw.js so it
+        // survives the generated service worker being regenerated.
+        importScripts: ['push-sw.js'],
         navigateFallback: `${base}index.html`,
         cleanupOutdatedCaches: true,
         runtimeCaching: [

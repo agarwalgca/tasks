@@ -2,7 +2,7 @@ import { db } from './db'
 import { newId } from './ids'
 import { requireUserId } from './session'
 import { nowISO, todayISO } from './time'
-import type { Client, List, SavedFilter, Tag, Task, TaskTag } from './types'
+import type { Client, List, Reminder, SavedFilter, Tag, Task, TaskTag } from './types'
 import { firstOccurrenceFrom, nextDueDate } from '@/features/recurrence/recurrence'
 import type { ParsedQuickAdd } from '@/features/quickadd/parse'
 import { deleteLocal, putLocal, putLocalMany, revise } from '@/sync/writes'
@@ -243,6 +243,31 @@ export async function deleteClient(id: string): Promise<void> {
     await putLocal('tasks', revise(task, { client_id: null }))
   }
   await deleteLocal('clients', id)
+}
+
+export async function createReminder(
+  taskId: string,
+  offsetMinutes: number,
+): Promise<Reminder> {
+  const at = nowISO()
+  const reminder: Reminder = {
+    id: newId(),
+    user_id: requireUserId(),
+    task_id: taskId,
+    offset_minutes: offsetMinutes,
+    absolute_at: null,
+    channel: 'push',
+    fired_at: null,
+    created_at: at,
+    updated_at: at,
+    deleted_at: null,
+  }
+  await putLocal('reminders', reminder)
+  return reminder
+}
+
+export async function deleteReminder(id: string): Promise<void> {
+  await deleteLocal('reminders', id)
 }
 
 export async function createSavedFilter(name: string): Promise<SavedFilter> {

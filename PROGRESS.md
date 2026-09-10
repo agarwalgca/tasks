@@ -1,9 +1,9 @@
 # Progress
 
 ## Where this is
-Phase 1 is done and verified against the live Supabase project (ap-south-1,
-Mumbai). Migrations are applied, the account exists, and a full round trip has
-been exercised on real infrastructure.
+Phase 1 is done, deployed and verified on the live project (ap-south-1, Mumbai).
+Phase 2 is built. Migrations 0004 and 0005 are **not yet applied**, and push
+needs VAPID keys and the Edge Function deployed — see "Phase 2 setup" below.
 
 ## Done
 
@@ -62,8 +62,41 @@ a genuine no-op).
   reload renders the shell from cache with tasks intact and the badge on
   "Offline".
 
-## Next
-Phase 2, and what each actually needs:
+## Phase 2 (built)
+- **Recurrence** — `rrule`-backed. Completing a repeating task leaves it
+  completed and creates the next one, so Completed keeps a real history. Two
+  anchors: from the due date (a monthly bill, however late you tick it) or from
+  the completion date ("every 3 days" from when you actually did it). Tags carry
+  over and subtasks come back unticked. Quick add reads "every monday",
+  "every 3 days", "every month".
+- **Search** — over titles, notes and tag names, client-side against Dexie, so
+  it works offline. `/` opens it.
+- **Calendar** — month grid, six weeks fixed so it never jumps height, priority
+  dots, click through to a task. `g v`.
+- **Clients** — CRUD in the sidebar, assignment from the task panel, and a
+  per-client view. Hidden from the task panel until you create one.
+- **Saved filters** — criteria stored as jsonb: due window, priorities, lists,
+  clients, tags, free text, include-completed. Empty criteria mean "everything
+  open"; entries within a criterion are "any of", and criteria combine with AND.
+- **Reminders + push** — reminder rows per task with offset presets, a per-device
+  notification toggle, a `send-reminders` Edge Function, and push handling in the
+  service worker via `public/push-sw.js`.
+
+**Tests** — 74 passing. Added: recurrence maths (19), the spawn-on-completion
+behaviour against a real Dexie (9), and filter matching (9).
+
+## Phase 2 setup, still outstanding
+1. Apply `0004_saved_filters.sql` and `0005_push.sql` in the SQL editor.
+2. For push: generate VAPID keys, set the private half as a Supabase secret and
+   the public half as `VITE_VAPID_PUBLIC_KEY` in `.env.local` and in the GitHub
+   repository secrets, deploy the function, and schedule it. Full steps in
+   `supabase/functions/send-reminders/README.md`.
+
+Until 0004/0005 are applied, saved filters and reminders work locally but fail to
+sync — the sync badge will show an error.
+
+## Superseded plan
+Phase 2, and what each needed when it was scoped:
 
 | feature | schema | notes |
 | --- | --- | --- |

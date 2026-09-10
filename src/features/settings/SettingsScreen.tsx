@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DownloadIcon } from '@/components/icons'
 import { db, META_DEVICE_ID, META_LAST_PULLED_AT } from '@/lib/db'
 import { supabase } from '@/lib/supabase'
@@ -7,6 +7,12 @@ import { useSyncStore } from '@/store/sync'
 import { useUi, type Theme } from '@/store/ui'
 import { downloadExport } from '@/features/export/exportData'
 import { changePassword } from '@/features/auth/changePassword'
+import {
+  disablePush,
+  enablePush,
+  pushState,
+  type PushState,
+} from '@/features/reminders/push'
 import { useLiveQuery } from 'dexie-react-hooks'
 
 const THEMES: Theme[] = ['light', 'dark', 'system']
@@ -53,6 +59,13 @@ export function SettingsScreen({ email }: { email: string | undefined }) {
         {exported !== null && (
           <p className="mt-2 text-xs text-accent">{exported} files saved.</p>
         )}
+      </section>
+
+      <section>
+        <h2 className="mb-2 text-2xs font-semibold uppercase tracking-wide text-faint">
+          Reminders
+        </h2>
+        <PushToggle />
       </section>
 
       <section>
@@ -205,5 +218,56 @@ function ChangePassword() {
         </button>
       </div>
     </form>
+  )
+}
+
+const PUSH_MESSAGE: Record<PushState, string> = {
+  unsupported: 'This browser cannot do web push.',
+  unconfigured: 'No VAPID key is set, so push is not wired up yet.',
+  denied: 'Notifications are blocked for this site in your browser settings.',
+  off: 'Reminders will not reach this device until you turn them on.',
+  on: 'This device is registered for reminder notifications.',
+}
+
+/** Push subscriptions belong to one browser, so this is per-device. */
+function PushToggle() {
+  const [state, setState] = useState<PushState | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    void pushState().then(setState)
+  }, [])
+
+  async function toggle() {
+    setBusy(true)
+    setError(null)
+    try {
+      setState(state === 'on' ? await disablePush() : await enablePush())
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (state === null) return <p className="text-2xs text-faint">Checking…</p>
+
+  const actionable = state === 'on' || state === 'off'
+  return (
+    <div>
+      <p className="mb-2 text-muted">{PUSH_MESSAGE[state]}</p>
+      {actionable && (
+        <button
+          type="button"
+          className="btn-outline text-xs"
+          onClick={() => void toggle()}
+          disabled={busy}
+        >
+          {busy ? 'Working…' : state === 'on' ? 'Turn off on this device' : 'Turn on for this device'}
+        </button>
+      )}
+      {error && <p className="mt-2 text-xs text-p1">{error}</p>}
+    </div>
   )
 }
