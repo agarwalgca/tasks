@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CloseIcon, TrashIcon } from '@/components/icons'
 import { deleteSavedFilter, updateSavedFilter } from '@/lib/mutations'
+import { describeCriteria } from './filters'
 import { useClients, useLists, useTags } from '@/lib/queries'
 import type { FilterCriteria, SavedFilter } from '@/lib/types'
 
@@ -99,6 +100,10 @@ export function FilterEditor({
           <CloseIcon size={16} />
         </button>
       </div>
+
+      <p className="text-2xs text-faint">
+        Showing: {describeCriteria(criteria)}
+      </p>
 
       <Row label="Due">
         {DUE_OPTIONS.map((option) => (

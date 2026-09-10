@@ -30,6 +30,7 @@ import {
   useSavedFilters,
   useUnreviewedConflictCount,
 } from '@/lib/queries'
+import { describeCriteria } from '@/features/filters/filters'
 import type { Client, List, SavedFilter } from '@/lib/types'
 import { useUi, type View } from '@/store/ui'
 
@@ -416,13 +417,14 @@ function FilterSection({ filters }: { filters: SavedFilter[] }) {
       </div>
 
       {filters.map((filter) => (
-        <NavItem
-          key={filter.id}
-          active={view.kind === 'filter' && view.filterId === filter.id}
-          label={filter.name}
-          icon={<FilterIcon size={15} />}
-          onClick={() => setView({ kind: 'filter', filterId: filter.id })}
-        />
+        <div key={filter.id} title={describeCriteria(filter.criteria ?? {})}>
+          <NavItem
+            active={view.kind === 'filter' && view.filterId === filter.id}
+            label={filter.name}
+            icon={<FilterIcon size={15} />}
+            onClick={() => setView({ kind: 'filter', filterId: filter.id })}
+          />
+        </div>
       ))}
 
       {adding && (
