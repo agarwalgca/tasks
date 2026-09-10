@@ -63,8 +63,19 @@ a genuine no-op).
   "Offline".
 
 ## Next
-Phase 2: recurrence (`rrule`), reminders and push, calendar view, saved
-filters, search, client UI. The schema already holds their columns.
+Phase 2, and what each actually needs:
+
+| feature | schema | notes |
+| --- | --- | --- |
+| recurrence | ready | `rrule`, `recurrence_anchor`, `recurrence_series_id`, `source` all exist. `rrule` still needs installing. |
+| calendar view | ready | pure UI over `due_date`. |
+| search | ready | client-side over Dexie; single-user scale doesn't need Postgres FTS. |
+| client UI | ready | `clients` table ships empty; needs CRUD and task assignment. |
+| reminders + push | **partial** | `reminders` rows exist, but delivery has nothing: no table for push subscriptions, no scheduled job, no Edge Function, no VAPID keys. |
+| saved filters | **missing** | no table at all. Needs a new migration. |
+
+So two of the six need new migrations. Everything else is application code
+against the schema as it stands.
 
 ### Deploying
 Live at **https://agarwalgca.github.io/tasks/** from
