@@ -2,8 +2,9 @@
 
 ## Where this is
 Phase 1 is done, deployed and verified on the live project (ap-south-1, Mumbai).
-Phase 2 is built. Migrations 0004 and 0005 are **not yet applied**, and push
-needs VAPID keys and the Edge Function deployed — see "Phase 2 setup" below.
+Phase 2 is built, deployed, and its migrations are applied and verified. The
+one thing not yet live is push delivery, which needs VAPID keys and the Edge
+Function deployed — see "Phase 2 setup" below.
 
 ## Done
 
@@ -85,15 +86,23 @@ a genuine no-op).
 **Tests** — 74 passing. Added: recurrence maths (19), the spawn-on-completion
 behaviour against a real Dexie (9), and filter matching (9).
 
-## Phase 2 setup, still outstanding
-1. Apply `0004_saved_filters.sql` and `0005_push.sql` in the SQL editor.
-2. For push: generate VAPID keys, set the private half as a Supabase secret and
-   the public half as `VITE_VAPID_PUBLIC_KEY` in `.env.local` and in the GitHub
-   repository secrets, deploy the function, and schedule it. Full steps in
-   `supabase/functions/send-reminders/README.md`.
+## Phase 2 verified on the live project (2026-09-13)
+- `0004_saved_filters.sql` and `0005_push.sql` applied. `saved_filters` and
+  `push_subscriptions` exist and return nothing to an anonymous read.
+- Anonymous inserts into both are refused with `42501`. (A first attempt sent
+  one payload to both tables and got `PGRST204` — a column mismatch rejected
+  before RLS ran, so it proved nothing. Re-run with per-table columns.)
+- `reminder_fire_at` on the real database: due 2026-09-20 17:00 IST, 60 minutes
+  before, returns `10:30 UTC`. 17:00 IST is 11:30 UTC, so the zone conversion is
+  right.
+- `due_reminders()` is callable and returns an empty set.
 
-Until 0004/0005 are applied, saved filters and reminders work locally but fail to
-sync — the sync badge will show an error.
+## Phase 2 setup, still outstanding
+Push delivery only: generate VAPID keys, set the private half as a Supabase
+secret and the public half as `VITE_VAPID_PUBLIC_KEY` in `.env.local` and the
+GitHub repository secrets, deploy the function, and schedule it. Full steps in
+`supabase/functions/send-reminders/README.md`. Until then reminders are stored
+and synced but nothing sends them.
 
 ## Superseded plan
 Phase 2, and what each needed when it was scoped:
