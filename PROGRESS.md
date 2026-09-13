@@ -2,9 +2,9 @@
 
 ## Where this is
 Phase 1 is done, deployed and verified on the live project (ap-south-1, Mumbai).
-Phase 2 is built, deployed, and its migrations are applied and verified. The
-one thing not yet live is push delivery, which needs VAPID keys and the Edge
-Function deployed — see "Phase 2 setup" below.
+Phase 2 is built, deployed, and its migrations are applied and verified. Push
+notifications were built and then removed at your request — see the decision
+below.
 
 ## Done
 
@@ -79,9 +79,7 @@ a genuine no-op).
 - **Saved filters** — criteria stored as jsonb: due window, priorities, lists,
   clients, tags, free text, include-completed. Empty criteria mean "everything
   open"; entries within a criterion are "any of", and criteria combine with AND.
-- **Reminders + push** — reminder rows per task with offset presets, a per-device
-  notification toggle, a `send-reminders` Edge Function, and push handling in the
-  service worker via `public/push-sw.js`.
+- **Reminders + push** — removed. See decisions.
 
 **Tests** — 74 passing. Added: recurrence maths (19), the spawn-on-completion
 behaviour against a real Dexie (9), and filter matching (9).
@@ -96,13 +94,6 @@ behaviour against a real Dexie (9), and filter matching (9).
   before, returns `10:30 UTC`. 17:00 IST is 11:30 UTC, so the zone conversion is
   right.
 - `due_reminders()` is callable and returns an empty set.
-
-## Phase 2 setup, still outstanding
-Push delivery only: generate VAPID keys, set the private half as a Supabase
-secret and the public half as `VITE_VAPID_PUBLIC_KEY` in `.env.local` and the
-GitHub repository secrets, deploy the function, and schedule it. Full steps in
-`supabase/functions/send-reminders/README.md`. Until then reminders are stored
-and synced but nothing sends them.
 
 ## Superseded plan
 Phase 2, and what each needed when it was scoped:
@@ -144,6 +135,18 @@ Supabase credentials come from repository secrets rather than the repo.
   survive an offline reload; use `npm run build && npm run preview` to test it.
 
 ## Decisions, and why
+
+- **Push notifications and the reminders UI were removed (2026-09-13).** You
+  didn't want push. Without it a reminder is a row that never fires, so the
+  Reminders field went too rather than stay as a control that does nothing.
+  Removed: the Edge Function, `public/push-sw.js`, the subscription code, the
+  Settings toggle, the VAPID env wiring and `createReminder`/`deleteReminder`.
+  **Left in the database on purpose:** migration 0005 is applied and must not be
+  edited, so `push_subscriptions`, `reminder_fire_at()`, `due_reminders()` and
+  `reminders_unfired_idx` still exist. All empty and unused. A `0006` drop
+  migration would remove them if that ever matters; nothing needs it now. The
+  `reminders` table itself is from 0001 and still syncs, so reminders could be
+  brought back without a schema change.
 
 - **`task_tags` gained a uuid pk, `user_id` and soft-delete columns**, and
   `reminders` gained `user_id`. The data model listed `task_tags(task_id,
