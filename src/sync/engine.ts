@@ -131,15 +131,29 @@ export class SyncEngine {
     let conflicts = 0
 
     for (const table of SYNC_TABLES) {
+      const store = this.db.table(table) as Table<AnyRow, string>
       for (let offset = 0; ; ) {
         const rows = await this.transport.pull(table, since, this.pageSize, offset)
         if (rows.length === 0) break
-        for (const row of rows) {
-          const outcome = await this.applyRemote(table, row)
-          if (outcome === 'applied' || outcome === 'conflict') pulled += 1
-          if (outcome === 'conflict') conflicts += 1
-          if (!watermark || row.updated_at > watermark) watermark = row.updated_at
-        }
+        // One transaction per page, so a first sync commits a page at a time
+        // rather than once per row.
+        let changed = 0
+        await this.db.transaction(
+          'rw',
+          store,
+          this.db.outbox,
+          this.db.conflicts,
+          async () => {
+            for (const row of rows) {
+              const outcome = await this.merge(store, table, row)
+              if (outcome === 'applied' || outcome === 'conflict') changed += 1
+              if (outcome === 'conflict') conflicts += 1
+              if (!watermark || row.updated_at > watermark) watermark = row.updated_at
+            }
+          },
+        )
+        pulled += changed
+        if (changed > 0) this.options.onChange?.()
         if (rows.length < this.pageSize) break
         offset += rows.length
       }
@@ -162,51 +176,57 @@ export class SyncEngine {
       store,
       this.db.outbox,
       this.db.conflicts,
-      async (): Promise<MergeOutcome> => {
-        const local = await store.get(remote.id)
-        if (!local) {
-          await store.put(remote)
-          return 'applied'
-        }
-
-        const remoteAt = Date.parse(remote.updated_at)
-        const localAt = Date.parse(local.updated_at)
-
-        if (remoteAt > localAt) {
-          const pending = await this.db.outbox
-            .where('[table+row_id]')
-            .equals([table, remote.id])
-            .toArray()
-          await store.put(remote)
-          if (pending.length > 0) {
-            await this.db.outbox.bulkDelete(pending.map((e) => e.seq!))
-            await this.db.conflicts.put({
-              id: newId(),
-              table,
-              row_id: remote.id,
-              title: describeRow(table, local),
-              local: pending[pending.length - 1].row,
-              remote,
-              detected_at: nowISO(),
-              reviewed_at: null,
-            })
-            return 'conflict'
-          }
-          return 'applied'
-        }
-
-        if (remoteAt < localAt) return 'kept-local'
-
-        // Same timestamp: the server already has this exact revision.
-        await this.db.outbox
-          .where('[table+row_id]')
-          .equals([table, remote.id])
-          .delete()
-        return 'unchanged'
-      },
+      () => this.merge(store, table, remote),
     )
-
     if (outcome === 'applied' || outcome === 'conflict') this.options.onChange?.()
     return outcome
+  }
+
+  /** Last-write-wins for one row. Runs inside a transaction the caller opened. */
+  private async merge(
+    store: Table<AnyRow, string>,
+    table: SyncTable,
+    remote: AnyRow,
+  ): Promise<MergeOutcome> {
+    const local = await store.get(remote.id)
+    if (!local) {
+      await store.put(remote)
+      return 'applied'
+    }
+
+    const remoteAt = Date.parse(remote.updated_at)
+    const localAt = Date.parse(local.updated_at)
+
+    if (remoteAt > localAt) {
+      const pending = await this.db.outbox
+        .where('[table+row_id]')
+        .equals([table, remote.id])
+        .toArray()
+      await store.put(remote)
+      if (pending.length > 0) {
+        await this.db.outbox.bulkDelete(pending.map((e) => e.seq!))
+        await this.db.conflicts.put({
+          id: newId(),
+          table,
+          row_id: remote.id,
+          title: describeRow(table, local),
+          local: pending[pending.length - 1].row,
+          remote,
+          detected_at: nowISO(),
+          reviewed_at: null,
+        })
+        return 'conflict'
+      }
+      return 'applied'
+    }
+
+    if (remoteAt < localAt) return 'kept-local'
+
+    // Same timestamp: the server already has this exact revision.
+    await this.db.outbox
+      .where('[table+row_id]')
+      .equals([table, remote.id])
+      .delete()
+    return 'unchanged'
   }
 }

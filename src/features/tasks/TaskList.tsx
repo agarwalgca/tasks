@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import {
-  childrenOf,
+  childrenByParent,
   compareTasks,
   selectGroups,
   useAllTasks,
@@ -11,11 +11,13 @@ import {
 } from '@/lib/queries'
 import { matchesFilter } from '@/features/filters/filters'
 import { formatDateLabel } from '@/lib/time'
-import type { Task } from '@/lib/types'
+import type { Tag, Task } from '@/lib/types'
 import { useUi, type View } from '@/store/ui'
 import { TaskRow } from './TaskRow'
 
 const NESTED_VIEWS = new Set(['inbox', 'list', 'all', 'client'])
+/** One shared empty array, so an untagged row keeps a stable prop. */
+const NO_TAGS: Tag[] = []
 const EMPTY: Record<string, string> = {
   today: 'Nothing due today.',
   next7: 'Nothing in the next seven days.',
@@ -39,32 +41,44 @@ export function TaskList({ view, now }: { view: View; now: Date }) {
   const setFocusedTask = useUi((s) => s.setFocusedTask)
   const setOpenTask = useUi((s) => s.setOpenTask)
 
+  const listById = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists])
+
+  const tagsForTask = useMemo(() => {
+    const tagById = new Map(tags.map((t) => [t.id, t]))
+    const map = new Map<string, Tag[]>()
+    for (const link of taskTags) {
+      const tag = tagById.get(link.tag_id)
+      if (!tag) continue
+      let bucket = map.get(link.task_id)
+      if (!bucket) map.set(link.task_id, (bucket = []))
+      bucket.push(tag)
+    }
+    return map
+  }, [taskTags, tags])
+
   const searchIndex = useMemo(() => {
     if (view.kind !== 'search') return undefined
-    const byTask = new Map<string, string[]>()
-    for (const link of taskTags) {
-      const tag = tags.find((t) => t.id === link.tag_id)
-      if (!tag) continue
-      byTask.set(link.task_id, [...(byTask.get(link.task_id) ?? []), tag.name])
-    }
     return new Map(
       tasks.map((t) => [
         t.id,
-        [t.title, t.notes ?? '', ...(byTask.get(t.id) ?? [])].join(' ').toLowerCase(),
+        [
+          t.title,
+          t.notes ?? '',
+          ...(tagsForTask.get(t.id) ?? NO_TAGS).map((tag) => tag.name),
+        ]
+          .join(' ')
+          .toLowerCase(),
       ]),
     )
-  }, [view.kind, tasks, taskTags, tags])
+  }, [view.kind, tasks, tagsForTask])
 
   const groups = useMemo(() => {
     if (view.kind === 'filter') {
       const filter = savedFilters.find((f) => f.id === view.filterId)
       if (!filter) return []
       const tagsByTask = new Map<string, string[]>()
-      for (const link of taskTags) {
-        tagsByTask.set(link.task_id, [
-          ...(tagsByTask.get(link.task_id) ?? []),
-          link.tag_id,
-        ])
+      for (const [taskId, rows] of tagsForTask) {
+        tagsByTask.set(taskId, rows.map((tag) => tag.id))
       }
       const textByTask = new Map(
         tasks.map((t) => [t.id, `${t.title} ${t.notes ?? ''}`.toLowerCase()]),
@@ -75,22 +89,13 @@ export function TaskList({ view, now }: { view: View; now: Date }) {
       return rows.length > 0 ? [{ key: 'filter', label: filter.name, tasks: rows }] : []
     }
     return selectGroups(tasks, view, now, searchIndex, searchQuery)
-  }, [tasks, view, now, searchIndex, searchQuery, savedFilters, taskTags])
-  const listById = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists])
-  const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags])
-  const tagsForTask = useMemo(() => {
-    const map = new Map<string, typeof tags>()
-    for (const link of taskTags) {
-      const tag = tagById.get(link.tag_id)
-      if (!tag) continue
-      const bucket = map.get(link.task_id) ?? []
-      bucket.push(tag)
-      map.set(link.task_id, bucket)
-    }
-    return map
-  }, [taskTags, tagById])
+  }, [tasks, view, now, searchIndex, searchQuery, savedFilters, tagsForTask])
 
   const nested = NESTED_VIEWS.has(view.kind)
+  const children = useMemo(
+    () => (nested ? childrenByParent(tasks) : null),
+    [nested, tasks],
+  )
   const showList = view.kind !== 'list'
 
   if (groups.length === 0) {
@@ -108,10 +113,11 @@ export function TaskList({ view, now }: { view: View; now: Date }) {
       key={task.id}
       task={task}
       depth={depth}
-      tags={tagsForTask.get(task.id) ?? []}
+      tags={tagsForTask.get(task.id) ?? NO_TAGS}
       list={showList && task.list_id ? listById.get(task.list_id) : undefined}
       focused={focusedTaskId === task.id}
       showDue={view.kind !== 'next7'}
+      now={now}
       onOpen={setOpenTask}
       onFocus={setFocusedTask}
     />
@@ -139,8 +145,7 @@ export function TaskList({ view, now }: { view: View; now: Date }) {
           {group.tasks.map((task) => (
             <div key={task.id}>
               {renderRow(task, 0)}
-              {nested &&
-                childrenOf(tasks, task.id).map((child) => renderRow(child, 1))}
+              {children?.get(task.id)?.map((child) => renderRow(child, 1))}
             </div>
           ))}
         </section>

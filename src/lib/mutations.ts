@@ -1,24 +1,45 @@
+import type { Table } from 'dexie'
 import { db } from './db'
 import { newId } from './ids'
 import { requireUserId } from './session'
 import { nowISO, todayISO } from './time'
-import type { Client, List, SavedFilter, Tag, Task, TaskTag } from './types'
+import type {
+  Client,
+  List,
+  RowTypes,
+  SavedFilter,
+  SyncTable,
+  Tag,
+  Task,
+  TaskTag,
+} from './types'
 import { firstOccurrenceFrom, nextDueDate } from '@/features/recurrence/recurrence'
 import type { ParsedQuickAdd } from '@/features/quickadd/parse'
 import { deleteLocal, putLocal, putLocalMany, revise } from '@/sync/writes'
 
-/** New rows land at the top of whatever they were added to. */
-async function topOrder(rows: { sort_order: number }[]): Promise<number> {
-  if (rows.length === 0) return 0
-  return Math.min(...rows.map((r) => r.sort_order)) - 1
+/**
+ * New rows land at the top: one below the lowest sort_order in the table, read
+ * straight off its index rather than by scanning the rows.
+ */
+async function topOrder<T extends { sort_order: number }>(
+  table: Table<T, string>,
+): Promise<number> {
+  const lowest = await table.orderBy('sort_order').first()
+  return lowest ? lowest.sort_order - 1 : 0
+}
+
+/** Applies one patch to every row in a single transaction; nothing for none. */
+async function reviseMany<T extends SyncTable>(
+  table: T,
+  rows: RowTypes[T][],
+  patch: Partial<RowTypes[T]>,
+): Promise<void> {
+  if (rows.length === 0) return
+  await putLocalMany(table, rows.map((row) => revise(row, patch)))
 }
 
 export async function createTask(patch: Partial<Task> = {}): Promise<Task> {
   const at = nowISO()
-  const siblings = await db.tasks
-    .filter((t) => !t.deleted_at && (t.list_id ?? null) === (patch.list_id ?? null))
-    .toArray()
-
   const task: Task = {
     id: newId(),
     user_id: requireUserId(),
@@ -33,7 +54,7 @@ export async function createTask(patch: Partial<Task> = {}): Promise<Task> {
     start_date: null,
     estimate_minutes: null,
     completed_at: null,
-    sort_order: await topOrder(siblings),
+    sort_order: await topOrder(db.tasks),
     rrule: null,
     recurrence_anchor: null,
     recurrence_series_id: null,
@@ -156,15 +177,15 @@ function shiftStart(task: Task, nextDue: string): string | null {
 }
 
 export async function deleteTask(id: string): Promise<void> {
-  const children = await db.tasks.where('parent_task_id').equals(id).toArray()
-  for (const child of children) {
-    if (!child.deleted_at) await deleteLocal('tasks', child.id)
-  }
-  const links = await db.task_tags.where('task_id').equals(id).toArray()
-  for (const link of links) {
-    if (!link.deleted_at) await deleteLocal('task_tags', link.id)
-  }
-  await deleteLocal('tasks', id)
+  const [task, children, links] = await Promise.all([
+    db.tasks.get(id),
+    db.tasks.where('parent_task_id').equals(id).toArray(),
+    db.task_tags.where('task_id').equals(id).toArray(),
+  ])
+  const at = nowISO()
+  const tasks = task ? [...children, task] : children
+  await reviseMany('tasks', tasks.filter((t) => !t.deleted_at), { deleted_at: at })
+  await reviseMany('task_tags', links.filter((l) => !l.deleted_at), { deleted_at: at })
 }
 
 export async function createList(
@@ -172,7 +193,6 @@ export async function createList(
   parentListId: string | null = null,
 ): Promise<List> {
   const at = nowISO()
-  const siblings = (await db.lists.toArray()).filter((l) => !l.deleted_at)
   const list: List = {
     id: newId(),
     user_id: requireUserId(),
@@ -180,7 +200,7 @@ export async function createList(
     color: null,
     icon: null,
     parent_list_id: parentListId,
-    sort_order: await topOrder(siblings),
+    sort_order: await topOrder(db.lists),
     is_archived: false,
     created_at: at,
     updated_at: at,
@@ -196,18 +216,12 @@ export async function updateList(list: List, patch: Partial<List>): Promise<void
 
 /** Deleting a list keeps its tasks; they fall back to the Inbox. */
 export async function deleteList(id: string): Promise<void> {
-  const children = (await db.lists.toArray()).filter(
-    (l) => !l.deleted_at && l.parent_list_id === id,
-  )
-  for (const child of children) {
-    await putLocal('lists', revise(child, { parent_list_id: null }))
-  }
-  const tasks = (await db.tasks.toArray()).filter(
-    (t) => !t.deleted_at && t.list_id === id,
-  )
-  for (const task of tasks) {
-    await putLocal('tasks', revise(task, { list_id: null }))
-  }
+  const [children, tasks] = await Promise.all([
+    db.lists.where('parent_list_id').equals(id).toArray(),
+    db.tasks.where('list_id').equals(id).toArray(),
+  ])
+  await reviseMany('lists', children.filter((l) => !l.deleted_at), { parent_list_id: null })
+  await reviseMany('tasks', tasks.filter((t) => !t.deleted_at), { list_id: null })
   await deleteLocal('lists', id)
 }
 
@@ -236,24 +250,21 @@ export async function updateClient(
 
 /** Deleting a client leaves its tasks alone; they just lose the label. */
 export async function deleteClient(id: string): Promise<void> {
-  const tasks = (await db.tasks.toArray()).filter(
-    (t) => !t.deleted_at && t.client_id === id,
-  )
-  for (const task of tasks) {
-    await putLocal('tasks', revise(task, { client_id: null }))
-  }
+  // client_id has no index, so this still walks the table, but only the
+  // matching rows are materialised and they are written in one transaction.
+  const tasks = await db.tasks.filter((t) => !t.deleted_at && t.client_id === id).toArray()
+  await reviseMany('tasks', tasks, { client_id: null })
   await deleteLocal('clients', id)
 }
 
 export async function createSavedFilter(name: string): Promise<SavedFilter> {
   const at = nowISO()
-  const existing = (await db.saved_filters.toArray()).filter((f) => !f.deleted_at)
   const filter: SavedFilter = {
     id: newId(),
     user_id: requireUserId(),
     name: name.trim() || 'New filter',
     criteria: {},
-    sort_order: await topOrder(existing),
+    sort_order: await topOrder(db.saved_filters),
     created_at: at,
     updated_at: at,
     deleted_at: null,

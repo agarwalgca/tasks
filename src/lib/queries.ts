@@ -1,5 +1,7 @@
+import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db'
+import { sharedLiveQuery } from './live'
 import { addDaysISO, todayISO } from './time'
 import type {
   BaseRow,
@@ -14,6 +16,13 @@ import type {
 import type { View } from '@/store/ui'
 
 const alive = <T extends BaseRow>(rows: T[]): T[] => rows.filter((r) => !r.deleted_at)
+
+type Named = { name: string }
+type Ordered = Named & { sort_order: number }
+
+const byName = (a: Named, b: Named) => a.name.localeCompare(b.name)
+const byOrderThenName = (a: Ordered, b: Ordered) =>
+  a.sort_order - b.sort_order || byName(a, b)
 
 export const isOpen = (task: Task): boolean =>
   task.status === 'todo' || task.status === 'doing'
@@ -34,77 +43,63 @@ export function compareTasks(a: Task, b: Task): number {
   return a.created_at.localeCompare(b.created_at)
 }
 
-export function useLists(): List[] {
-  return (
-    useLiveQuery(async () => {
-      const rows = alive(await db.lists.toArray())
-      return rows.sort(
-        (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name),
-      )
-    }, []) ?? []
-  )
-}
+// Each table is read through one shared subscription; see sharedLiveQuery.
 
-export function useClients(): Client[] {
-  return (
-    useLiveQuery(async () => {
-      const rows = alive(await db.clients.toArray())
-      return rows.sort((a, b) => a.name.localeCompare(b.name))
-    }, []) ?? []
-  )
-}
+export const useLists = sharedLiveQuery<List[]>(
+  async () => alive(await db.lists.toArray()).sort(byOrderThenName),
+  [],
+)
 
-export function useSavedFilters(): SavedFilter[] {
-  return (
-    useLiveQuery(async () => {
-      const rows = alive(await db.saved_filters.toArray())
-      return rows.sort(
-        (a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name),
-      )
-    }, []) ?? []
-  )
-}
+export const useClients = sharedLiveQuery<Client[]>(
+  async () => alive(await db.clients.toArray()).sort(byName),
+  [],
+)
 
-export function useTags(): Tag[] {
-  return (
-    useLiveQuery(async () => {
-      const rows = alive(await db.tags.toArray())
-      return rows.sort((a, b) => a.name.localeCompare(b.name))
-    }, []) ?? []
-  )
-}
+export const useSavedFilters = sharedLiveQuery<SavedFilter[]>(
+  async () => alive(await db.saved_filters.toArray()).sort(byOrderThenName),
+  [],
+)
 
-export function useTaskTags(): TaskTag[] {
-  return useLiveQuery(async () => alive(await db.task_tags.toArray()), []) ?? []
-}
+export const useTags = sharedLiveQuery<Tag[]>(
+  async () => alive(await db.tags.toArray()).sort(byName),
+  [],
+)
+
+export const useTaskTags = sharedLiveQuery<TaskTag[]>(
+  async () => alive(await db.task_tags.toArray()),
+  [],
+)
+
+export const useAllTasks = sharedLiveQuery<Task[]>(
+  async () => alive(await db.tasks.toArray()),
+  [],
+)
 
 export function useTask(id: string | null): Task | undefined {
   return useLiveQuery(async () => (id ? db.tasks.get(id) : undefined), [id])
 }
 
-export function useAllTasks(): Task[] {
-  return useLiveQuery(async () => alive(await db.tasks.toArray()), []) ?? []
-}
-
 export function useOpenCounts(now: Date): Record<string, number> {
   const tasks = useAllTasks()
   const today = todayISO(now)
-  const horizon = addDaysISO(today, 6)
-  const counts: Record<string, number> = {
-    inbox: 0,
-    today: 0,
-    next7: 0,
-    all: 0,
-  }
-  for (const task of tasks) {
-    if (!isOpen(task)) continue
-    counts.all += 1
-    if (!task.list_id) counts.inbox += 1
-    if (task.due_date && task.due_date <= today) counts.today += 1
-    if (task.due_date && task.due_date <= horizon) counts.next7 += 1
-    if (task.list_id) counts[task.list_id] = (counts[task.list_id] ?? 0) + 1
-  }
-  return counts
+  return useMemo(() => {
+    const horizon = addDaysISO(today, 6)
+    const counts: Record<string, number> = {
+      inbox: 0,
+      today: 0,
+      next7: 0,
+      all: 0,
+    }
+    for (const task of tasks) {
+      if (!isOpen(task)) continue
+      counts.all += 1
+      if (!task.list_id) counts.inbox += 1
+      if (task.due_date && task.due_date <= today) counts.today += 1
+      if (task.due_date && task.due_date <= horizon) counts.next7 += 1
+      if (task.list_id) counts[task.list_id] = (counts[task.list_id] ?? 0) + 1
+    }
+    return counts
+  }, [tasks, today])
 }
 
 export interface TaskGroup {
@@ -214,20 +209,25 @@ export function childrenOf(tasks: Task[], parentId: string): Task[] {
     .sort(compareTasks)
 }
 
-export function useConflicts(): ConflictRecord[] {
-  return (
-    useLiveQuery(
-      async () => db.conflicts.orderBy('detected_at').reverse().toArray(),
-      [],
-    ) ?? []
-  )
+/** The same for every parent at once: one pass instead of one scan per row. */
+export function childrenByParent(tasks: Task[]): Map<string, Task[]> {
+  const map = new Map<string, Task[]>()
+  for (const task of tasks) {
+    if (!task.parent_task_id || !isOpen(task)) continue
+    let bucket = map.get(task.parent_task_id)
+    if (!bucket) map.set(task.parent_task_id, (bucket = []))
+    bucket.push(task)
+  }
+  for (const bucket of map.values()) bucket.sort(compareTasks)
+  return map
 }
 
-export function useUnreviewedConflictCount(): number {
-  return (
-    useLiveQuery(
-      async () => (await db.conflicts.toArray()).filter((c) => !c.reviewed_at).length,
-      [],
-    ) ?? 0
-  )
-}
+export const useConflicts = sharedLiveQuery<ConflictRecord[]>(
+  async () => db.conflicts.orderBy('detected_at').reverse().toArray(),
+  [],
+)
+
+export const useUnreviewedConflictCount = sharedLiveQuery<number>(
+  async () => db.conflicts.filter((c) => !c.reviewed_at).count(),
+  0,
+)

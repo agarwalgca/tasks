@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { CheckIcon, NoteIcon, RepeatIcon } from '@/components/icons'
 import { setTaskStatus } from '@/lib/mutations'
 import { formatDue, isOverdue } from '@/lib/time'
@@ -19,23 +19,26 @@ interface TaskRowProps {
   depth?: number
   focused?: boolean
   showDue?: boolean
+  /** The shell's coarse clock, so a row re-renders only when what it shows changes. */
+  now: Date
   onOpen: (id: string) => void
   onFocus: (id: string) => void
 }
 
-export function TaskRow({
+export const TaskRow = memo(function TaskRow({
   task,
   tags,
   list,
   depth = 0,
   focused = false,
   showDue = true,
+  now,
   onOpen,
   onFocus,
 }: TaskRowProps) {
   const [popping, setPopping] = useState(false)
   const done = task.status === 'done' || task.status === 'cancelled'
-  const overdue = !done && isOverdue(task.due_date, task.due_time)
+  const overdue = !done && isOverdue(task.due_date, task.due_time, now)
 
   function toggle() {
     if (!done) setPopping(true)
@@ -107,7 +110,7 @@ export function TaskRow({
             <span
               className={`font-mono ${overdue ? 'text-p1' : 'text-muted'}`}
             >
-              {formatDue(task.due_date, task.due_time)}
+              {formatDue(task.due_date, task.due_time, now)}
             </span>
           )}
           {list && (
@@ -119,4 +122,4 @@ export function TaskRow({
       </button>
     </div>
   )
-}
+})

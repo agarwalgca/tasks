@@ -38,6 +38,24 @@ const MONTHS: Record<string, number> = {
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
+// Built once rather than on every keystroke; the alternations are long.
+const MONTH_ALTERNATION = Object.keys(MONTHS).join('|')
+const WEEKDAY_ALTERNATION = Object.keys(WEEKDAYS)
+  .sort((a, b) => b.length - a.length)
+  .join('|')
+const MONTH_THEN_DAY = new RegExp(
+  `(^|\\s)(${MONTH_ALTERNATION})[a-z]*\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?=\\s|$)`,
+  'gi',
+)
+const DAY_THEN_MONTH = new RegExp(
+  `(^|\\s)(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_ALTERNATION})[a-z]*\\.?(?=\\s|$)`,
+  'gi',
+)
+const WEEKDAY_WORD = new RegExp(
+  `(^|\\s)(?:next\\s+)?(${WEEKDAY_ALTERNATION})(?=\\s|$)`,
+  'gi',
+)
+
 function overlaps(spans: Span[], start: number, end: number): boolean {
   return spans.some((s) => start < s.end && end > s.start)
 }
@@ -167,33 +185,20 @@ export function parseQuickAdd(
   })
 
   // sep 12 / 12 sep
-  const monthNames = Object.keys(MONTHS).join('|')
-  scan(
-    new RegExp(
-      `(^|\\s)(${monthNames})[a-z]*\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?=\\s|$)`,
-      'gi',
-    ),
-    (m) => {
-      if (dueDate) return false
-      const iso = resolveYear(today, MONTHS[m[2].toLowerCase()], Number(m[3]))
-      if (!iso) return false
-      dueDate = iso
-      return true
-    },
-  )
-  scan(
-    new RegExp(
-      `(^|\\s)(\\d{1,2})(?:st|nd|rd|th)?\\s+(${monthNames})[a-z]*\\.?(?=\\s|$)`,
-      'gi',
-    ),
-    (m) => {
-      if (dueDate) return false
-      const iso = resolveYear(today, MONTHS[m[3].toLowerCase()], Number(m[2]))
-      if (!iso) return false
-      dueDate = iso
-      return true
-    },
-  )
+  scan(MONTH_THEN_DAY, (m) => {
+    if (dueDate) return false
+    const iso = resolveYear(today, MONTHS[m[2].toLowerCase()], Number(m[3]))
+    if (!iso) return false
+    dueDate = iso
+    return true
+  })
+  scan(DAY_THEN_MONTH, (m) => {
+    if (dueDate) return false
+    const iso = resolveYear(today, MONTHS[m[3].toLowerCase()], Number(m[2]))
+    if (!iso) return false
+    dueDate = iso
+    return true
+  })
 
   scan(/(^|\s)(today|tod|tonight|tomorrow|tmrw|tmr|tom|yesterday)(?=\s|$)/gi, (m) => {
     if (dueDate) return false
@@ -220,8 +225,7 @@ export function parseQuickAdd(
     return true
   })
 
-  const weekdayNames = Object.keys(WEEKDAYS).sort((a, b) => b.length - a.length).join('|')
-  scan(new RegExp(`(^|\\s)(?:next\\s+)?(${weekdayNames})(?=\\s|$)`, 'gi'), (m) => {
+  scan(WEEKDAY_WORD, (m) => {
     if (dueDate) return false
     dueDate = nextWeekday(today, WEEKDAYS[m[2].toLowerCase()])
     return true

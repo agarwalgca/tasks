@@ -150,10 +150,7 @@ export function describeRrule(rule: string, dueDate: string | null): string {
 export function parseRecurrencePhrase(
   text: string,
 ): { rrule: string; matched: string } | null {
-  const weekdayNames =
-    'sun|sunday|mon|monday|tue|tues|tuesday|wed|weds|wednesday|thu|thur|thurs|thursday|fri|friday|sat|saturday'
-
-  const weekday = new RegExp(`(^|\\s)every\\s+(${weekdayNames})(?=\\s|$)`, 'i').exec(text)
+  const weekday = EVERY_WEEKDAY.exec(text)
   if (weekday) {
     const index = WEEKDAY_LOOKUP[weekday[2].toLowerCase()]
     return {
@@ -207,6 +204,12 @@ const WEEKDAY_LOOKUP: Record<string, number> = {
   fri: 5, friday: 5,
   sat: 6, saturday: 6,
 }
+
+// Built once; the quick-add preview runs this on every keystroke.
+const EVERY_WEEKDAY = new RegExp(
+  `(^|\\s)every\\s+(${Object.keys(WEEKDAY_LOOKUP).join('|')})(?=\\s|$)`,
+  'i',
+)
 
 /** The first due date for a task created as "every monday" with no date given. */
 export function firstOccurrenceFrom(rule: string, today: string): string | null {

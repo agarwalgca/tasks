@@ -95,6 +95,29 @@ behaviour against a real Dexie (9), and filter matching (9).
   right.
 - `due_reminders()` is callable and returns an empty set.
 
+## Review and optimisation (2026-09-17)
+- **Fixed:** a completion-anchored recurrence stepped along the series begun
+  on the original due date instead of restarting from the completion day, so
+  "every 3 days" only gave completion + 3 when the gap happened to be a
+  multiple of three. Its test depended on the calendar date and was failing.
+- Every table is read through one shared Dexie live query (`src/lib/live.ts`)
+  instead of one `useLiveQuery` per component, so a write costs one table read
+  and one sort rather than four to six.
+- `TaskRow` is memoised and takes the shell's clock as a prop, so hovering a
+  row or typing in search re-renders the rows that changed, not the list.
+- Subtask lookup, the search index, filter tag maps and the calendar buckets
+  are built in one pass instead of a scan per row.
+- `zonedParts` caches its last answer. Filter matching and due-date formatting
+  were calling `formatToParts` once per task for the same instant.
+- Sync pull merges a page of rows in one IndexedDB transaction, not one each.
+- New rows take `sort_order` from the index instead of scanning the table, and
+  deleting a task, list or client writes its dependants in one transaction.
+- Quick-add and recurrence regexes are built once rather than per keystroke.
+- Vendor code is its own chunk (about 545 kB) so a deploy only re-downloads
+  the app chunk (about 84 kB).
+
+**Tests** — 76 passing. Added: the shared live query (2).
+
 ## Superseded plan
 Phase 2, and what each needed when it was scoped:
 
@@ -185,9 +208,12 @@ Supabase credentials come from repository secrets rather than the repo.
 - **`rrule` is not installed yet.** It is in the approved stack but Phase 1 has
   no recurrence code; it lands with Phase 2 rather than sitting unused.
 
-- **TanStack Query holds the session; Dexie's `useLiveQuery` holds the reads.**
+- **TanStack Query holds the session; Dexie live queries hold the reads.**
   The local database is the read source, so wrapping it in Query would add a
-  cache in front of a cache.
+  cache in front of a cache. Whole-table reads go through `sharedLiveQuery`
+  (one Dexie subscription per table, `useSyncExternalStore` on the React side)
+  because six components each running their own `toArray()` on every write was
+  the largest runtime cost. Single-row reads still use `useLiveQuery` directly.
 
 - **Date views list matching subtasks; list views nest them.** A subtask due
   today should show up in Today. Under Inbox / All / a list, children sit

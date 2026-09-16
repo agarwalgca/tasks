@@ -32,13 +32,16 @@ export function CalendarView({ now }: { now: Date }) {
   const tasks = useAllTasks()
   const setOpenTask = useUi((s) => s.setOpenTask)
 
+  /** Open tasks by due date, each day already in display order. */
   const byDay = useMemo(() => {
     const map = new Map<string, Task[]>()
     for (const task of tasks) {
-      if (!task.due_date) continue
-      map.set(task.due_date, [...(map.get(task.due_date) ?? []), task])
+      if (!task.due_date || !isOpen(task)) continue
+      let bucket = map.get(task.due_date)
+      if (!bucket) map.set(task.due_date, (bucket = []))
+      bucket.push(task)
     }
-    for (const [, rows] of map) rows.sort(compareTasks)
+    for (const rows of map.values()) rows.sort(compareTasks)
     return map
   }, [tasks])
 
@@ -89,8 +92,7 @@ export function CalendarView({ now }: { now: Date }) {
 
       <div className="scroll-thin grid min-h-0 flex-1 grid-cols-7 grid-rows-6 overflow-y-auto">
         {days.map((day) => {
-          const rows = byDay.get(day) ?? []
-          const openRows = rows.filter(isOpen)
+          const openRows = byDay.get(day) ?? []
           const outside = day.slice(0, 7) !== month.slice(0, 7)
           return (
             <div

@@ -12,6 +12,17 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Dependencies change far less often than the app, so keeping them in
+        // their own chunk means a deploy only re-downloads the app code. The
+        // workbox helper stays separate: the plugin loads it lazily.
+        manualChunks: (id) =>
+          id.includes('node_modules') && !id.includes('workbox') ? 'vendor' : undefined,
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

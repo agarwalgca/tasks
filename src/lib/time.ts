@@ -33,11 +33,21 @@ function formatterFor(tz: string): Intl.DateTimeFormat {
   return f
 }
 
+// formatToParts is the slow step, and callers hit it with the same "now" over
+// and over: once per task in a filter pass, twice per row in a list. A
+// one-entry cache turns that into one call per distinct instant.
+let cachedMs = NaN
+let cachedTz = ''
+let cachedParts: ZonedParts | null = null
+
 export function zonedParts(instant: Date, tz: string = APP_TZ): ZonedParts {
+  const ms = instant.getTime()
+  if (cachedParts && ms === cachedMs && tz === cachedTz) return cachedParts
+
   const parts = formatterFor(tz).formatToParts(instant)
   const get = (type: Intl.DateTimeFormatPartTypes) =>
     Number(parts.find((p) => p.type === type)!.value)
-  return {
+  cachedParts = {
     year: get('year'),
     month: get('month'),
     day: get('day'),
@@ -45,6 +55,9 @@ export function zonedParts(instant: Date, tz: string = APP_TZ): ZonedParts {
     minute: get('minute'),
     second: get('second'),
   }
+  cachedMs = ms
+  cachedTz = tz
+  return cachedParts
 }
 
 function tzOffsetMs(instant: Date, tz: string): number {
