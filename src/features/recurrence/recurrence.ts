@@ -102,9 +102,10 @@ export function nextDueDate(
   currentDue: string | null,
   completedOn: string,
 ): string | null {
-  if (anchor === 'completion_date') {
-    return nextOccurrence(rule, completedOn, currentDue ?? completedOn)
-  }
+  // The series restarts from the completion day, so "every 3 days" means three
+  // days after it was done, not the next slot in a series begun on the old due
+  // date.
+  if (anchor === 'completion_date') return nextOccurrence(rule, completedOn)
   if (!currentDue) return null
   return nextOccurrence(rule, currentDue)
 }
