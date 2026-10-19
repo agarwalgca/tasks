@@ -148,6 +148,19 @@ repo served from `/<repo>/` works without hand-editing anything. The workflow
 derives it from the repo name and uses `/` for a `<user>.github.io` repo.
 Supabase credentials come from repository secrets rather than the repo.
 
+### Keeping the project awake
+Free-tier Supabase pauses a project after about a week with no database
+activity, and the hostname stops resolving entirely — the app then fails at the
+login screen with "failed to fetch". This happened on 2026-10-19 after five
+quiet weeks; restoring from the dashboard brought everything back intact, which
+took a few minutes of 521 / 502 / 404 before settling on 200.
+
+`.github/workflows/keep-warm.yml` now runs a real PostgREST select daily so the
+project never goes idle that long. It has to be a query, not a health check: an
+anonymous select returns `[]` under RLS, but the connection to Postgres is what
+counts as activity. GitHub disables scheduled workflows in a repo untouched for
+60 days, so that is the remaining way this can lapse.
+
 ### Setup notes, if this ever needs redoing
 - A project's region cannot be changed after creation; make a new project and
   move the data. This one was rebuilt in Mumbai after starting in Seoul.
