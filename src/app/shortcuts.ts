@@ -60,7 +60,8 @@ export function useShortcuts(enabled: boolean): void {
       const ui = useUi.getState()
 
       if (event.key === 'Escape') {
-        if (ui.shortcutsOpen) ui.setShortcutsOpen(false)
+        if (ui.movingTaskId) ui.setMovingTask(null)
+        else if (ui.shortcutsOpen) ui.setShortcutsOpen(false)
         else if (ui.openTaskId) ui.setOpenTask(null)
         return
       }
@@ -68,6 +69,8 @@ export function useShortcuts(enabled: boolean): void {
       if (isTyping(event.target) || event.metaKey || event.ctrlKey || event.altKey) {
         return
       }
+      // The move picker owns the keyboard while it is open.
+      if (ui.movingTaskId) return
 
       if (pendingG) {
         pendingG = false
@@ -129,6 +132,12 @@ export function useShortcuts(enabled: boolean): void {
         return
       }
 
+      if (event.key === 'm') {
+        event.preventDefault()
+        void withFocused((id) => ui.setMovingTask(id))
+        return
+      }
+
       if (event.key === 'Enter' || event.key === 'e') {
         event.preventDefault()
         void withFocused((id) => ui.setOpenTask(id))
@@ -169,6 +178,7 @@ export const SHORTCUTS: [string, string][] = [
   ['x or Space', 'Complete task'],
   ['Enter or e', 'Open task'],
   ['0 1 2 3', 'Set priority'],
+  ['m', 'Move to another list'],
   ['# or Backspace', 'Delete task'],
   ['g then t w i a c', 'Today, week, inbox, all, completed'],
   ['g then v', 'Calendar'],

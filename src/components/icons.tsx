@@ -181,3 +181,16 @@ export const FilterIcon = (p: IconProps) => (
     <path d="M3 5h18l-7 8v6l-4 2v-8Z" />
   </Svg>
 )
+
+export const MoveIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 12h11M11 8l4 4-4 4" />
+    <path d="M19 5v14" />
+  </Svg>
+)
+
+export const ChevronDownIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m6 9 6 6 6-6" />
+  </Svg>
+)

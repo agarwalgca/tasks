@@ -24,6 +24,13 @@ export interface View {
 
 export type Theme = 'light' | 'dark' | 'system'
 
+/** The drag payload for a task row; lists in the sidebar accept it. */
+export const TASK_DRAG_TYPE = 'application/x-task-id'
+
+export const SIDEBAR_MIN = 200
+export const SIDEBAR_MAX = 480
+export const SIDEBAR_DEFAULT = 288
+
 interface UiStore {
   view: View
   theme: Theme
@@ -33,6 +40,13 @@ interface UiStore {
   sidebarOpen: boolean
   shortcutsOpen: boolean
   searchQuery: string
+  /** The task the "move to list" picker is open for. */
+  movingTaskId: string | null
+  /** Set while a task row is being dragged, so drop targets can show. */
+  draggingTaskId: string | null
+  sidebarWidth: number
+  /** Sidebar sections the user has folded away. */
+  collapsed: Record<string, boolean>
   setView: (view: View) => void
   setTheme: (theme: Theme) => void
   setShowQuickAdd: (open: boolean) => void
@@ -41,6 +55,10 @@ interface UiStore {
   setSidebarOpen: (open: boolean) => void
   setShortcutsOpen: (open: boolean) => void
   setSearchQuery: (query: string) => void
+  setMovingTask: (id: string | null) => void
+  setDraggingTask: (id: string | null) => void
+  setSidebarWidth: (width: number) => void
+  toggleCollapsed: (section: string) => void
 }
 
 export const useUi = create<UiStore>()(
@@ -54,6 +72,11 @@ export const useUi = create<UiStore>()(
       sidebarOpen: false,
       shortcutsOpen: false,
       searchQuery: '',
+      movingTaskId: null,
+      draggingTaskId: null,
+      sidebarWidth: SIDEBAR_DEFAULT,
+      // Filters and clients start folded so lists get the room.
+      collapsed: { filters: true, clients: true },
       setView: (view) =>
         set({ view, openTaskId: null, focusedTaskId: null, sidebarOpen: false }),
       setTheme: (theme) => set({ theme }),
@@ -63,10 +86,23 @@ export const useUi = create<UiStore>()(
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
       setSearchQuery: (searchQuery) => set({ searchQuery }),
+      setMovingTask: (movingTaskId) => set({ movingTaskId }),
+      setDraggingTask: (draggingTaskId) => set({ draggingTaskId }),
+      setSidebarWidth: (width) =>
+        set({ sidebarWidth: Math.round(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, width))) }),
+      toggleCollapsed: (section) =>
+        set((state) => ({
+          collapsed: { ...state.collapsed, [section]: !state.collapsed[section] },
+        })),
     }),
     {
       name: 'tasks-ui',
-      partialize: (state) => ({ view: state.view, theme: state.theme }),
+      partialize: (state) => ({
+        view: state.view,
+        theme: state.theme,
+        sidebarWidth: state.sidebarWidth,
+        collapsed: state.collapsed,
+      }),
     },
   ),
 )

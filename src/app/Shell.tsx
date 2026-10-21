@@ -11,6 +11,7 @@ import {
   StackIcon,
   SunIcon,
 } from '@/components/icons'
+import { Wordmark } from '@/components/Logo'
 import { CalendarView } from '@/features/calendar/CalendarView'
 import { FilterEditor } from '@/features/filters/FilterEditor'
 import { ListNav } from '@/features/lists/ListNav'
@@ -18,10 +19,13 @@ import { QuickAdd } from '@/features/quickadd/QuickAdd'
 import { SettingsScreen } from '@/features/settings/SettingsScreen'
 import { ConflictsScreen } from '@/features/sync/ConflictsScreen'
 import { SyncBadge } from '@/features/sync/SyncBadge'
+import { MovePicker } from '@/features/tasks/MovePicker'
 import { TaskDetail } from '@/features/tasks/TaskDetail'
 import { TaskList } from '@/features/tasks/TaskList'
+import { BRAND } from '@/lib/brand'
 import { useClients, useLists, useSavedFilters } from '@/lib/queries'
-import { useUi, viewTitle, type View } from '@/store/ui'
+import { useIsDesktop } from '@/lib/useIsDesktop'
+import { SIDEBAR_DEFAULT, useUi, viewTitle, type View } from '@/store/ui'
 import { SHORTCUTS, useShortcuts } from './shortcuts'
 
 const TABS: { view: View; label: string; icon: typeof SunIcon }[] = [
@@ -42,17 +46,47 @@ function useCoarseNow(): Date {
   return now
 }
 
-function useIsDesktop(): boolean {
-  const [desktop, setDesktop] = useState(
-    () => window.matchMedia('(min-width: 768px)').matches,
+/** Drag the sidebar's edge to resize; arrow keys too; double-click resets. */
+function ResizeHandle() {
+  const setWidth = useUi((s) => s.setSidebarWidth)
+  const width = useUi((s) => s.sidebarWidth)
+
+  function onPointerDown(e: React.PointerEvent) {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = useUi.getState().sidebarWidth
+    const onMove = (event: PointerEvent) => setWidth(startWidth + event.clientX - startX)
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize sidebar"
+      aria-valuenow={width}
+      tabIndex={0}
+      title="Drag to resize · double-click to reset"
+      onPointerDown={onPointerDown}
+      onDoubleClick={() => setWidth(SIDEBAR_DEFAULT)}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft') setWidth(width - 16)
+        if (e.key === 'ArrowRight') setWidth(width + 16)
+      }}
+      className="group/handle absolute inset-y-0 -right-1.5 z-10 w-3 cursor-col-resize focus:outline-none"
+    >
+      <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-accent opacity-0 transition-opacity group-hover/handle:opacity-100 group-focus/handle:opacity-100" />
+    </div>
   )
-  useEffect(() => {
-    const query = window.matchMedia('(min-width: 768px)')
-    const onChange = (e: MediaQueryListEvent) => setDesktop(e.matches)
-    query.addEventListener('change', onChange)
-    return () => query.removeEventListener('change', onChange)
-  }, [])
-  return desktop
 }
 
 export function Shell({ session }: { session: Session }) {
@@ -66,6 +100,9 @@ export function Shell({ session }: { session: Session }) {
   const setShowQuickAdd = useUi((s) => s.setShowQuickAdd)
   const shortcutsOpen = useUi((s) => s.shortcutsOpen)
   const setShortcutsOpen = useUi((s) => s.setShortcutsOpen)
+  const movingTaskId = useUi((s) => s.movingTaskId)
+  const setMovingTask = useUi((s) => s.setMovingTask)
+  const sidebarWidth = useUi((s) => s.sidebarWidth)
 
   const desktop = useIsDesktop()
   const now = useCoarseNow()
@@ -86,6 +123,10 @@ export function Shell({ session }: { session: Session }) {
         ? activeFilter?.name
         : lists.find((l) => l.id === view.listId)?.name
   const title = viewTitle(view, namedTarget)
+
+  useEffect(() => {
+    document.title = `${title} · ${BRAND.name}`
+  }, [title])
   const listId = view.kind === 'list' ? (view.listId ?? null) : null
   const showsTasks = !['conflicts', 'settings', 'calendar', 'search', 'filter'].includes(
     view.kind,
@@ -94,9 +135,12 @@ export function Shell({ session }: { session: Session }) {
   return (
     <div className="flex h-full flex-col md:flex-row">
       {desktop && (
-        <aside className="hidden w-60 shrink-0 border-r border-line bg-surface md:block">
+        <aside
+          className="relative hidden shrink-0 border-r border-line bg-surface md:block"
+          style={{ width: sidebarWidth }}
+        >
           <div className="flex h-12 items-center gap-2 border-b border-line px-3">
-            <span className="text-sm font-semibold">Tasks</span>
+            <Wordmark size={22} />
             <span className="ml-auto">
               <SyncBadge />
             </span>
@@ -104,14 +148,15 @@ export function Shell({ session }: { session: Session }) {
           <div className="h-[calc(100%-3rem)]">
             <ListNav />
           </div>
+          <ResizeHandle />
         </aside>
       )}
 
       {!desktop && sidebarOpen && (
         <div className="fixed inset-0 z-40 flex">
-          <div className="w-72 max-w-[85%] bg-surface shadow-xl">
+          <div className="w-80 max-w-[88%] bg-surface shadow-xl">
             <div className="flex h-12 items-center justify-between border-b border-line px-3">
-              <span className="text-sm font-semibold">Tasks</span>
+              <Wordmark size={22} />
               <button
                 type="button"
                 className="btn-quiet px-2 py-1"
@@ -277,6 +322,10 @@ export function Shell({ session }: { session: Session }) {
         <div className="fixed inset-0 z-50">
           <TaskDetail taskId={openTaskId} onClose={() => setOpenTask(null)} />
         </div>
+      )}
+
+      {movingTaskId && (
+        <MovePicker taskId={movingTaskId} onClose={() => setMovingTask(null)} />
       )}
 
       {shortcutsOpen && (

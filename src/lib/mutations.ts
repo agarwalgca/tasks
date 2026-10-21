@@ -73,6 +73,24 @@ export async function updateTask(task: Task, patch: Partial<Task>): Promise<Task
   return putLocal('tasks', revise(task, patch))
 }
 
+/**
+ * Moves a task to a list (null is the Inbox). Subtasks live wherever their
+ * parent does, so the whole family moves together in one write — and asking to
+ * move a subtask moves the family it belongs to.
+ */
+export async function moveTask(taskId: string, listId: string | null): Promise<void> {
+  const task = await db.tasks.get(taskId)
+  if (!task) return
+  const root = task.parent_task_id
+    ? ((await db.tasks.get(task.parent_task_id)) ?? task)
+    : task
+  const children = await db.tasks.where('parent_task_id').equals(root.id).toArray()
+  const family = [root, ...children].filter(
+    (t) => !t.deleted_at && (t.list_id ?? null) !== listId,
+  )
+  await reviseMany('tasks', family, { list_id: listId })
+}
+
 export async function setTaskStatus(task: Task, done: boolean): Promise<void> {
   // Spawning stamps a series id on the original, so carry that forward rather
   // than writing the stale copy back over it.

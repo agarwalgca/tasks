@@ -29,9 +29,10 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'Tasks',
-        short_name: 'Tasks',
-        description: 'Personal task manager',
+        // Keep in step with src/lib/brand.ts and index.html.
+        name: 'Docket',
+        short_name: 'Docket',
+        description: 'Everything on your docket, in order.',
         start_url: base,
         scope: base,
         display: 'standalone',

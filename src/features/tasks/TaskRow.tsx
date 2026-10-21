@@ -3,6 +3,7 @@ import { CheckIcon, NoteIcon, RepeatIcon } from '@/components/icons'
 import { setTaskStatus } from '@/lib/mutations'
 import { formatDue, isOverdue } from '@/lib/time'
 import type { List, Tag, Task } from '@/lib/types'
+import { TASK_DRAG_TYPE, useUi } from '@/store/ui'
 
 const PRIORITY_BAR = ['bg-transparent', 'bg-p1', 'bg-p2', 'bg-p3']
 const PRIORITY_RING = [
@@ -17,6 +18,8 @@ interface TaskRowProps {
   tags: Tag[]
   list?: List
   depth?: number
+  /** Desktop, top-level rows: drag onto a list in the sidebar to move. */
+  draggable?: boolean
   focused?: boolean
   showDue?: boolean
   /** The shell's coarse clock, so a row re-renders only when what it shows changes. */
@@ -30,6 +33,7 @@ export const TaskRow = memo(function TaskRow({
   tags,
   list,
   depth = 0,
+  draggable = false,
   focused = false,
   showDue = true,
   now,
@@ -48,6 +52,17 @@ export const TaskRow = memo(function TaskRow({
   return (
     <div
       data-task-row={task.id}
+      draggable={draggable}
+      onDragStart={
+        draggable
+          ? (e) => {
+              e.dataTransfer.setData(TASK_DRAG_TYPE, task.id)
+              e.dataTransfer.effectAllowed = 'move'
+              useUi.getState().setDraggingTask(task.id)
+            }
+          : undefined
+      }
+      onDragEnd={draggable ? () => useUi.getState().setDraggingTask(null) : undefined}
       onMouseEnter={() => onFocus(task.id)}
       className={`group relative flex items-start gap-2.5 border-b border-line/70
         pr-2 transition-colors sm:pr-3 ${

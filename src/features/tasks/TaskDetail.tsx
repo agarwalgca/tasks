@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckIcon, CloseIcon, PlusIcon, TrashIcon } from '@/components/icons'
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  CloseIcon,
+  InboxIcon,
+  ListIcon,
+  MoveIcon,
+  PlusIcon,
+  TrashIcon,
+} from '@/components/icons'
 import {
   createTask,
   deleteTask,
@@ -18,6 +27,7 @@ import {
 } from '@/lib/queries'
 import { RecurrencePicker } from '@/features/recurrence/RecurrencePicker'
 import type { Task, TaskStatus } from '@/lib/types'
+import { useUi } from '@/store/ui'
 
 const PRIORITIES: { value: number; label: string; tone: string }[] = [
   { value: 1, label: 'P1', tone: 'border-p1 text-p1' },
@@ -34,6 +44,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
   const clients = useClients()
   const allTags = useTags()
   const taskTags = useTaskTags()
+  const setMovingTask = useUi((s) => s.setMovingTask)
   const task = tasks.find((t) => t.id === taskId)
 
   const [title, setTitle] = useState('')
@@ -70,6 +81,9 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
 
   const children = childrenOf(tasks, task.id)
   const isSubtask = !!task.parent_task_id
+  const listName = task.list_id
+    ? (lists.find((l) => l.id === task.list_id)?.name ?? 'Unknown list')
+    : 'Inbox'
 
   const commitTitle = () => {
     const next = title.trim()
@@ -106,6 +120,17 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
           {isSubtask ? 'Subtask' : 'Task'}
         </span>
         <div className="flex items-center gap-1">
+          {!isSubtask && (
+            <button
+              type="button"
+              className="btn-quiet px-2 py-1 text-xs"
+              title="Move to another list (m)"
+              onClick={() => setMovingTask(task.id)}
+            >
+              <MoveIcon size={15} />
+              Move
+            </button>
+          )}
           <button
             type="button"
             className="btn-quiet px-2 py-1 text-p1"
@@ -211,20 +236,26 @@ export function TaskDetail({ taskId, onClose }: { taskId: string; onClose: () =>
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="List">
-            <select
-              value={task.list_id ?? ''}
-              onChange={(e) =>
-                void updateTask(task, { list_id: e.target.value || null })
-              }
-              className="field"
-            >
-              <option value="">Inbox</option>
-              {lists.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.name}
-                </option>
-              ))}
-            </select>
+            {isSubtask ? (
+              <span
+                className="field block truncate text-muted"
+                title="A subtask lives in its parent's list"
+              >
+                {listName} <span className="text-2xs text-faint">· follows parent</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMovingTask(task.id)}
+                className="field flex items-center gap-2 text-left hover:border-accent"
+              >
+                <span className="shrink-0 text-faint">
+                  {task.list_id ? <ListIcon size={14} /> : <InboxIcon size={14} />}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{listName}</span>
+                <ChevronDownIcon size={14} className="shrink-0 text-faint" />
+              </button>
+            )}
           </Field>
           <Field label="Status">
             <select

@@ -12,6 +12,7 @@ import {
 import { matchesFilter } from '@/features/filters/filters'
 import { formatDateLabel } from '@/lib/time'
 import type { Tag, Task } from '@/lib/types'
+import { useIsDesktop } from '@/lib/useIsDesktop'
 import { useUi, type View } from '@/store/ui'
 import { TaskRow } from './TaskRow'
 
@@ -40,6 +41,7 @@ export function TaskList({ view, now }: { view: View; now: Date }) {
   const focusedTaskId = useUi((s) => s.focusedTaskId)
   const setFocusedTask = useUi((s) => s.setFocusedTask)
   const setOpenTask = useUi((s) => s.setOpenTask)
+  const desktop = useIsDesktop()
 
   const listById = useMemo(() => new Map(lists.map((l) => [l.id, l])), [lists])
 
@@ -113,6 +115,7 @@ export function TaskList({ view, now }: { view: View; now: Date }) {
       key={task.id}
       task={task}
       depth={depth}
+      draggable={desktop && depth === 0 && !task.parent_task_id}
       tags={tagsForTask.get(task.id) ?? NO_TAGS}
       list={showList && task.list_id ? listById.get(task.list_id) : undefined}
       focused={focusedTaskId === task.id}

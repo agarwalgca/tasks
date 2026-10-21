@@ -84,6 +84,31 @@ a genuine no-op).
 **Tests** — 74 passing. Added: recurrence maths (19), the spawn-on-completion
 behaviour against a real Dexie (9), and filter matching (9).
 
+## Moving, sidebar and branding (2026-10-21)
+- **Move a task to another list** from the task panel (Move button, or the List
+  field, which is now a button), with `m` on the focused row, or by dragging a
+  row onto a list or Inbox in the sidebar on desktop. The picker filters as you
+  type and names how many subtasks will come along.
+- **Fixed:** the old List dropdown moved a task but left its subtasks in the
+  old list, which skewed that list's count. `moveTask` moves the whole family in
+  one write, and running it again on a task heals any subtask an earlier move
+  stranded. A subtask's own List field now reads "follows parent" instead of
+  offering a move that would split the family.
+- **Sidebar:** lists take the middle of the sidebar (527px of 752 at 800px tall,
+  70%). Filters and Clients fold away, collapsed by default and remembered;
+  Calendar, Search, Conflicts and Settings are one icon row at the bottom. The
+  sidebar is resizable from 200px to 480px — drag the edge, arrow keys on it, or
+  double-click to reset to 288px — and the width is remembered.
+- **Branding:** the app is called **Docket**. The mark is a docket slip — the
+  accent tile with its top corner folded and a check — drawn in theme tokens so
+  it follows light and dark. It is on the sidebar, phone drawer, sign-in,
+  password and setup screens, the tab title (`Today · Docket`), the manifest,
+  the favicon and all four PWA icons. The maskable icon (what Android puts on
+  the home screen) keeps the slip silhouette inside the safe zone rather than
+  falling back to a bare check.
+
+**Tests** — 83 passing; `moveTask` gained 7.
+
 ## Phase 2 verified on the live project (2026-09-13)
 - `0004_saved_filters.sql` and `0005_push.sql` applied. `saved_filters` and
   `push_subscriptions` exist and return nothing to an anonymous read.
@@ -171,6 +196,17 @@ counts as activity. GitHub disables scheduled workflows in a repo untouched for
   survive an offline reload; use `npm run build && npm run preview` to test it.
 
 ## Decisions, and why
+
+- **The name lives in `src/lib/brand.ts`,** plus two plain strings that load
+  before any code runs: the `<title>` in `index.html` and the manifest in
+  `vite.config.ts`. Changing the name means changing those three. What did not
+  change, on purpose: the IndexedDB name (`tasks`), the localStorage key
+  (`tasks-ui`) and the `/tasks/` URL. Renaming the first two would strand the
+  local copy on every device; renaming the repo would move the URL out from
+  under the installed app.
+
+- **Drag-and-drop is desktop only.** HTML5 drag does not work on touch, and a
+  long-press drag would fight scrolling on a phone. The picker covers the phone.
 
 - **Push notifications and the reminders UI were removed (2026-09-13).** You
   didn't want push. Without it a reminder is a row that never fires, so the

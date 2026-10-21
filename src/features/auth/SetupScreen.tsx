@@ -1,4 +1,5 @@
 import { AlertIcon } from '@/components/icons'
+import { LogoMark } from '@/components/Logo'
 
 const STEPS = [
   'Create a project at supabase.com, then open Project Settings → API.',
@@ -12,6 +13,7 @@ export function SetupScreen() {
   return (
     <div className="flex min-h-full items-center justify-center px-5 py-12">
       <div className="w-full max-w-md">
+        <LogoMark size={36} className="mb-6" />
         <div className="mb-5 flex items-center gap-2 text-p2">
           <AlertIcon size={18} />
           <h1 className="text-base font-semibold text-ink">Supabase isn’t configured</h1>

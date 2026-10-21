@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { CheckIcon } from '@/components/icons'
+import { LogoMark } from '@/components/Logo'
+import { BRAND } from '@/lib/brand'
 import { supabase } from '@/lib/supabase'
 import { changePassword } from './changePassword'
 
@@ -27,14 +28,13 @@ export function UpdatePasswordScreen({ onDone }: { onDone: () => void }) {
   return (
     <div className="flex min-h-full items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-fg">
-            <CheckIcon size={20} />
-          </span>
-          <div>
-            <h1 className="text-base font-semibold leading-tight">Tasks</h1>
-            <p className="text-xs text-muted">Choose a new password</p>
-          </div>
+        <div className="mb-8">
+          <LogoMark size={44} />
+          <h1 className="mt-4 text-2xl font-semibold tracking-tight">{BRAND.name}</h1>
+          <p className="mt-1 text-sm text-muted">{BRAND.tagline}</p>
+          <p className="mt-7 text-2xs font-semibold uppercase tracking-wide text-faint">
+            Choose a new password
+          </p>
         </div>
 
         <form onSubmit={submit} className="space-y-3">
