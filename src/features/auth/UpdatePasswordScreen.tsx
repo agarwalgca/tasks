@@ -31,7 +31,7 @@ export function UpdatePasswordScreen({ onDone }: { onDone: () => void }) {
         <div className="mb-8">
           <LogoMark size={44} />
           <h1 className="mt-4 text-2xl font-semibold tracking-tight">{BRAND.name}</h1>
-          <p className="mt-1 text-sm text-muted">{BRAND.tagline}</p>
+          <p className="mt-1 text-sm text-muted">{BRAND.owner}</p>
           <p className="mt-7 text-2xs font-semibold uppercase tracking-wide text-faint">
             Choose a new password
           </p>

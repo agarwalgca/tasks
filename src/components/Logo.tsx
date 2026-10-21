@@ -1,7 +1,7 @@
 import { BRAND } from '@/lib/brand'
 
 /**
- * A docket slip: the accent tile with its top corner folded over, and a check.
+ * A slip of paper: the accent tile with its top corner folded over, and a check.
  * Drawn in theme tokens so it follows light and dark; the favicon and PWA icons
  * are fixed-colour renderings of the same shape.
  */
@@ -31,22 +31,29 @@ export function LogoMark({ size = 24, className }: { size?: number; className?: 
   )
 }
 
-/** Mark plus name, for the sidebar and the sign-in screens. */
+/** Mark plus name, and optionally the owner underneath. */
 export function Wordmark({
   size = 22,
+  withOwner = false,
   className = '',
 }: {
   size?: number
+  withOwner?: boolean
   className?: string
 }) {
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
-      <LogoMark size={size} />
-      <span
-        className="font-semibold tracking-tight text-ink"
-        style={{ fontSize: `${Math.round(size * 0.68)}px` }}
-      >
-        {BRAND.name}
+    <span className={`inline-flex min-w-0 items-center gap-2 ${className}`}>
+      <LogoMark size={size} className="shrink-0" />
+      <span className="flex min-w-0 flex-col leading-tight">
+        <span
+          className="font-semibold tracking-tight text-ink"
+          style={{ fontSize: `${Math.round(size * 0.68)}px` }}
+        >
+          {BRAND.name}
+        </span>
+        {withOwner && (
+          <span className="truncate text-2xs text-muted">{BRAND.owner}</span>
+        )}
       </span>
     </span>
   )

@@ -140,7 +140,7 @@ export function Shell({ session }: { session: Session }) {
           style={{ width: sidebarWidth }}
         >
           <div className="flex h-12 items-center gap-2 border-b border-line px-3">
-            <Wordmark size={22} />
+            <Wordmark size={24} withOwner />
             <span className="ml-auto">
               <SyncBadge />
             </span>
@@ -156,7 +156,7 @@ export function Shell({ session }: { session: Session }) {
         <div className="fixed inset-0 z-40 flex">
           <div className="w-80 max-w-[88%] bg-surface shadow-xl">
             <div className="flex h-12 items-center justify-between border-b border-line px-3">
-              <Wordmark size={22} />
+              <Wordmark size={24} withOwner />
               <button
                 type="button"
                 className="btn-quiet px-2 py-1"

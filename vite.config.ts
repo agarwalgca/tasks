@@ -30,9 +30,9 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
         // Keep in step with src/lib/brand.ts and index.html.
-        name: 'Docket',
-        short_name: 'Docket',
-        description: 'Everything on your docket, in order.',
+        name: 'Tasks',
+        short_name: 'Tasks',
+        description: 'Tasks — CA Gaurav Agarwal',
         start_url: base,
         scope: base,
         display: 'standalone',

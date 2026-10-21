@@ -99,13 +99,14 @@ behaviour against a real Dexie (9), and filter matching (9).
   Calendar, Search, Conflicts and Settings are one icon row at the bottom. The
   sidebar is resizable from 200px to 480px — drag the edge, arrow keys on it, or
   double-click to reset to 288px — and the width is remembered.
-- **Branding:** the app is called **Docket**. The mark is a docket slip — the
-  accent tile with its top corner folded and a check — drawn in theme tokens so
-  it follows light and dark. It is on the sidebar, phone drawer, sign-in,
-  password and setup screens, the tab title (`Today · Docket`), the manifest,
-  the favicon and all four PWA icons. The maskable icon (what Android puts on
-  the home screen) keeps the slip silhouette inside the safe zone rather than
-  falling back to a bare check.
+- **Branding:** the app stays **Tasks**, with **CA Gaurav Agarwal** under the
+  name in the sidebar header, the phone drawer and the sign-in and password
+  screens, and in the page and manifest descriptions. The mark is a slip of
+  paper — the accent tile with its top corner folded and a check — drawn in
+  theme tokens so it follows light and dark, and used for the favicon and all
+  four PWA icons. The maskable icon (what Android puts on the home screen) keeps
+  the slip silhouette inside the safe zone. (Briefly renamed "Docket" on
+  2026-10-21 and reverted the same day at your request.)
 
 **Tests** — 83 passing; `moveTask` gained 7.
 
@@ -197,13 +198,9 @@ counts as activity. GitHub disables scheduled workflows in a repo untouched for
 
 ## Decisions, and why
 
-- **The name lives in `src/lib/brand.ts`,** plus two plain strings that load
-  before any code runs: the `<title>` in `index.html` and the manifest in
-  `vite.config.ts`. Changing the name means changing those three. What did not
-  change, on purpose: the IndexedDB name (`tasks`), the localStorage key
-  (`tasks-ui`) and the `/tasks/` URL. Renaming the first two would strand the
-  local copy on every device; renaming the repo would move the URL out from
-  under the installed app.
+- **The name and owner live in `src/lib/brand.ts`,** plus two plain strings
+  that load before any code runs: the `<title>` in `index.html` and the
+  manifest in `vite.config.ts`. Change those three together.
 
 - **Drag-and-drop is desktop only.** HTML5 drag does not work on touch, and a
   long-press drag would fight scrolling on a phone. The picker covers the phone.
